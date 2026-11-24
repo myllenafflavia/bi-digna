@@ -193,7 +193,8 @@ const GRUPOS={entrada:'Entrada',abordagem:'Abordagem',qualificacao:'Qualificaç�
 const cleanMot=raw=>{if(raw==null||!String(raw).trim())return null;let s=String(raw).trim().replace(/\s+/g,' ');
  const fix={'Ã§':'ç','Ã¡':'á','Ãª':'ê','Ã£':'ã','Ã©':'é','Ã³':'ó','Ãº':'ú','Ã­':'í','Ã¢':'â','Ãµ':'õ','Ã‡':'Ç','Ã‰':'É','Ã´':'ô','Ã ':'à'};for(const k in fix)s=s.split(k).join(fix[k]);
  s=s.toLowerCase();return s.charAt(0).toUpperCase()+s.slice(1)};
-const guessM=n=>/parque|jazig|cremat|cemit|ppaz/i.test(n)?'pp':'pd';
+const guessM=n=>/parque|jazig|cremat|cemit|ppaz/i.test(n)?'pp':/plano|wi-?fi|digna/i.test(n)?'pd':'ou';
+const normO=v=>{if(v==null)return 'Não informada';v=String(v).replace(/\s+/g,' ').trim();if(!v||/^desconhecid/i.test(v))return 'Não informada';return v.split('|').map(x=>{x=x.trim();return x.charAt(0).toUpperCase()+x.slice(1)}).join(' | ')};
 const guessEq=n=>/qualif|visita/i.test(n)?'qualificacao':/propost|apresent|or[cç]amento/i.test(n)?'proposta':/negocia|fechament/i.test(n)?'negociacao':/contato|abord|tentativa|conect|liga[cç]/i.test(n)?'abordagem':/entrada|novo|lead|inicial|base/i.test(n)?'entrada':'propria';
 let FUN=[],FI={},D=[],CI={},MOTRAW={},LISTS={};const CONT_DEALS=new Map();
 let cfg={qual:{},eq:{},marca:{},metas:{},orc:{}};let CFG_SRC='padrão';
@@ -202,7 +203,7 @@ function loadData(bi){META=bi.meta;GEN=L(META.generated_at);HIST=L(META.track_st
  CI=Object.fromEntries(DICT.camp.map((n,i)=>[String(i),{n}]));
  const dv=(k,i)=>i>=0?DICT[k][i]:null;
  D=bi.deals.map(r=>{const [id,pi,si,st,c,cl,src,camp,user,reason,ck,city,utm,amt]=r;const f=bi.pipelines[pi];
-  const d={id,cf:f.id,cs:Math.max(0,si),st:st==='w'?'won':st==='l'?'lost':'open',hold:st==='p',c:L(c),ca:cl?L(cl):null,o:dv('src',src)||'Não informada',cp:camp>=0?String(camp):null,ow:dv('user',user)||'Sem responsável',pr:dv('city',city)||'Não informada',utm:dv('utm',utm),mr:dv('reason',reason),cid:ck||('n'+id),am:amt,mo:null,lf:null,ls:null};
+  const d={id,cf:f.id,cs:Math.max(0,si),st:st==='w'?'won':st==='l'?'lost':'open',hold:st==='p',c:L(c),ca:cl?L(cl):null,o:normO(dv('src',src)),cp:camp>=0?String(camp):null,ow:dv('user',user)||'Sem responsável',pr:dv('city',city)||'Não informada',utm:dv('utm',utm),mr:dv('reason',reason),cid:ck||('n'+id),am:amt,mo:null,lf:null,ls:null};
   if(d.st!=='open'&&d.ca==null)d.ca=d.c;
   if(d.st==='lost'){d.mo=cleanMot(d.mr);d.lf=d.cf;d.ls=d.cs;if(d.mr!=null)MOTRAW[d.mr]=(MOTRAW[d.mr]||0)+1}
   const hv=bi.hist[id];let h=hv&&hv.length?hv.filter(e=>e[0]>=0&&e[1]>=0).map(e=>({f:bi.pipelines[e[0]].id,s:e[1],t:e[2]?L(e[2]):d.c})):null;
@@ -485,7 +486,7 @@ VIEWS['perdas']=()=>{const [a,b]=range();const sel=SEL();const ev=S.mode==='even
  xy('p-evo',{labels:ms.map(t=>MESC[new Date(t).getUTCMonth()]),tipL:ms.map(t=>MES[new Date(t).getUTCMonth()]+' '+new Date(t).getUTCFullYear()),series:evo,stack:true,aria:'Perdas por mês e motivo'})};
 
 VIEWS['midia']=()=>{const [a,b]=range();const k=K(a,b);const ev=S.mode==='eventos';const sel=SEL();
- const paid=o=>/meta|facebook|instagram|google|ads|tiktok|linkedin|youtube|pago|patrocin/i.test(o);
+ const paid=o=>/busca paga|\bads\b|paid|\bcpc\b|patrocin/i.test(o);
  const grpBy=(key,lab)=>{const m=new Map;const add=(arr,f)=>{for(const d of arr){const g=key(d);if(!m.has(g))m.set(g,{g,l:lab(g),n:0,q:0,w:0,p:0,ci:0});m.get(g)[f]++}};add(k.ent,'n');add(k.q,'q');add(k.w,'w');add(k.l,'p');
   for(const d of k.l){if(d.mo==='Contato incorreto'||d.mo==='Sem resposta'){const x=m.get(key(d));if(x)x.ci++}}return [...m.values()].sort((x,y)=>y.n-x.n||y.q-x.q)};
  const byO=grpBy(d=>d.o,x=>x);
@@ -500,7 +501,7 @@ VIEWS['midia']=()=>{const [a,b]=range();const k=K(a,b);const ev=S.mode==='evento
  <tbody>${body||'<tr><td colspan="9" class="mut">Sem negócios no recorte.</td></tr>'}${tr(T,'tot','Total')}</tbody></table></div></div>
  <div class="grid g2"><div class="box flat"><h2>Entrada por tipo de origem</h2>${leg([['Mídia paga','var(--blue)'],['Demais origens','var(--grey)']])}<div class="fig" id="m-ts"></div></div>
  <div class="box flat"><h2>Qualidade do vínculo</h2><p class="mut sm">Quanto maior, mais confiável o cruzamento com a mídia quando ela for integrada.</p>${bars([{l:'Negócios com origem preenchida',v:ratio(k.ent.filter(d=>d.o!=='Não informada').length,k.leads)},{l:'Negócios com campanha preenchida',v:ratio(k.ent.filter(d=>d.cp).length,k.leads)},{l:'Mídia paga com campanha preenchida',v:ratio(pd.filter(d=>d.cp).length,pd.length)},{l:'Negócios com UTM de campanha',v:ratio(k.ent.filter(d=>d.utm).length,k.leads)}],PC)}
- <p class="sm mut" style="margin-top:10px">Origens tratadas como mídia paga: nomes com Meta, Facebook, Instagram, Google, Ads, TikTok, LinkedIn ou YouTube.</p></div></div>`;
+ <p class="sm mut" style="margin-top:10px">Origens tratadas como mídia paga: Busca Paga, nomes com Ads (como Facebook Ads), paid ou cpc. Redes sociais sem essas marcas contam como orgânicas.</p></div></div>`;
  xy('m-ts',{labels:bk.out.map(x=>x.l),series:[{n:'Mídia paga',c:'var(--blue)',t:'bar',v:ts.map(x=>x[0])},{n:'Demais origens',c:'var(--grey)',t:'bar',v:ts.map(x=>x[1])}],stack:true,aria:'Entrada por tipo de origem'})};
 
 VIEWS['entre-funis']=()=>{const [a,b]=range();const sel=SEL();const vf=visFun();const coh=sel.filter(d=>d.c>=a&&d.c<b);
