@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BI Comercial · Grupo Digna</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=Nunito+Sans:opsz,wght@6..12,400;6..12,600;6..12,700&display=swap" rel="stylesheet">
+<style>
+/* VOICE: painel de trabalho, claro e direto, cada número com sua regra visível
+   IDEA: o quadro de acompanhamento do televendas, com filtros sempre à vista
+   PICTURE: cartões clicáveis e o gráfico de entrada, qualificação e vendas no topo
+   COLOUR and TYPE: azul Digna #1694D2 dominante, cinza andamento, vermelho perda, verde ganho; Nunito arredondada
+   LAYOUT: barra fixa de contexto e filtros, abas, telas em grade fluida que empilham abaixo de 600px */
+:root{color-scheme:light dark;
+--bg:light-dark(#f3f7fa,#0d1820);--panel:light-dark(#ffffff,#13232d);--ink:light-dark(#0f2a3d,#e4eef4);--mut:light-dark(#587083,#93a9b8);
+--line:light-dark(#dce6ed,#243a49);--soft:light-dark(#e6f3fa,#11344a);--blue:#1694D2;--blue2:light-dark(#0d6b9c,#62c2f0);
+--grey:light-dark(#b3c0ca,#5a6e7c);--red:light-dark(#d34848,#f07a7a);--green:light-dark(#279356,#4fc888);--ink2:light-dark(#0f2a3d,#cfe0ea);
+--warn:light-dark(#fff4d6,#3a2f10);--warnink:light-dark(#7a5600,#f2cf73)}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 "Nunito Sans",system-ui,sans-serif;overflow-x:clip}
+h1,h2,h3,.fig-n{font-family:Nunito,system-ui,sans-serif}
+h1{font-size:clamp(24px,3.2vw,34px);line-height:1.1;margin:0 0 6px;font-weight:900;text-wrap:balance}
+h2{font-size:19px;margin:0 0 4px;font-weight:800}
+h3{font-size:15px;margin:0 0 8px;font-weight:800}
+p{margin:0 0 8px}
+.mut{color:var(--mut)}.sm{font-size:13px}
+button,select,input{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+.top{background:var(--panel);border-bottom:1px solid var(--line);z-index:20}
+@media(min-width:900px){.top{position:sticky;top:0}}
+.bar1{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;padding:10px max(3vw,14px)}
+.brand{display:flex;align-items:center;gap:10px;font-family:Nunito,system-ui,sans-serif;font-weight:900;font-size:18px}
+.brand svg{width:32px;height:32px;flex:none}
+.brand span{font-weight:700;color:var(--mut);font-size:14px}
+.ctx{display:flex;flex-wrap:wrap;gap:6px;flex:1}
+.pill{display:inline-flex;align-items:center;gap:6px;background:var(--soft);color:var(--blue2);border-radius:999px;padding:3px 11px;font-weight:700;font-size:13px}
+.pill.gr{background:transparent;border:1px solid var(--line);color:var(--mut)}
+.fresh{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12.5px;color:var(--mut)}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--green);margin-right:5px}
+.dot.w{background:#e0a100}
+.filters{display:flex;flex-wrap:wrap;gap:8px;padding:0 max(3vw,14px) 10px;align-items:center}
+.more{display:flex;flex-wrap:wrap;gap:8px;padding:0 max(3vw,14px) 10px}
+.more[hidden]{display:none}
+.ms{position:relative}
+.fb,.sel{min-height:40px;border:1px solid var(--line);background:var(--panel);border-radius:10px;padding:6px 12px;display:inline-flex;align-items:center;gap:6px;max-width:260px}
+.fb b{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fb.on{border-color:var(--blue);background:var(--soft)}
+.fb .k{color:var(--mut)}
+.pop{position:absolute;top:calc(100% + 6px);left:0;z-index:40;background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:0 12px 32px rgba(0,30,50,.18);padding:8px;width:min(320px,86vw);max-height:360px;overflow:auto}
+.pop label{display:flex;gap:8px;align-items:flex-start;padding:7px 8px;border-radius:8px;cursor:pointer}
+.pop label:hover{background:var(--soft)}
+.pop .g{font-size:12px;color:var(--mut);padding:8px 8px 2px;font-weight:700}
+.pop .acts{display:flex;gap:6px;padding:4px 4px 8px;border-bottom:1px solid var(--line);margin-bottom:4px}
+.lnk{background:none;border:0;color:var(--blue2);font-weight:700;padding:6px 8px;border-radius:8px}
+.lnk:hover{background:var(--soft)}
+input[type=checkbox],input[type=radio]{accent-color:var(--blue);width:17px;height:17px;margin-top:2px;flex:none}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden;min-height:40px}
+.seg button{border:0;background:var(--panel);padding:6px 12px;font-weight:700;color:var(--mut)}
+.seg button.on{background:var(--blue);color:#fff}
+.dates{display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap}.datei{min-height:40px;border:1px solid var(--line);border-radius:10px;background:var(--panel);padding:4px 8px;font-size:16px}
+.tabs{display:flex;gap:2px;padding:0 max(3vw,14px);border-top:1px solid var(--line);overflow-x:auto;scrollbar-width:thin}
+.tabs a{flex:none;padding:11px 14px;text-decoration:none;color:var(--mut);font-weight:700;border-bottom:3px solid transparent;white-space:nowrap}
+.tabs a.on{color:var(--blue2);border-color:var(--blue)}
+main{padding:18px max(3vw,14px) 48px;max-width:1440px;margin:0 auto}
+.head{display:flex;flex-wrap:wrap;gap:8px 24px;align-items:flex-end;justify-content:space-between;margin-bottom:16px}
+.note{background:var(--warn);color:var(--warnink);border-radius:10px;padding:9px 13px;font-size:13.5px;margin:0 0 14px}
+.grid{display:grid;gap:14px}
+.g2{grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr))}
+.g3{grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr))}
+.cards{display:grid;gap:10px;grid-template-columns:repeat(auto-fill,minmax(min(100%,190px),1fr));}@media(max-width:600px){.cards{grid-template-columns:repeat(2,minmax(0,1fr))}.card .v{font-size:21px}.ctx{flex-basis:100%;order:3}}.cards{margin-bottom:14px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px 14px;text-align:left;display:flex;flex-direction:column;gap:2px;min-height:112px;transition:border-color .15s,transform .15s}
+.card:hover{border-color:var(--blue);transform:translateY(-1px)}
+.card .l{font-size:13px;color:var(--mut);font-weight:700}
+.card .v{font-family:Nunito,system-ui,sans-serif;font-weight:900;font-size:clamp(22px,2.4vw,28px);line-height:1.15;white-space:nowrap}
+.card .v.na{font-size:16px;color:var(--mut);font-weight:800;white-space:normal}
+.card .s{font-size:12.5px;color:var(--mut)}
+.dl{font-size:12.5px;font-weight:700;white-space:nowrap}
+.up{color:var(--green)}.dn{color:var(--red)}.eq{color:var(--mut)}
+.box{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px}
+.box.flat{margin-bottom:0}
+.bh{display:flex;flex-wrap:wrap;justify-content:space-between;gap:6px 12px;align-items:flex-start;margin-bottom:10px}
+.fig{position:relative;height:300px}
+.fig.s{height:240px}
+.fig>svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+.leg{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:13px;color:var(--mut)}
+.leg i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+.leg i.ln{height:3px;border-radius:2px;vertical-align:3px}
+.rows{display:grid;gap:8px}
+.row{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,2fr) auto;gap:10px;align-items:center;font-size:13.5px}
+.track{height:12px;background:var(--soft);border-radius:6px;overflow:hidden;display:flex}
+.track>span{display:block;height:100%}
+.row .n{font-weight:700;text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+.stg{display:grid;gap:12px}
+.st{display:grid;grid-template-columns:minmax(0,170px) minmax(0,1fr);gap:6px 14px;align-items:center}
+.st .nm{font-weight:800}
+.st .nm small{display:block;font-weight:600;color:var(--mut);font-size:12.5px}
+.sbar{height:30px;display:flex;border-radius:7px;overflow:hidden;background:var(--soft)}
+.sbar span{display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:800;white-space:nowrap;overflow:hidden}
+.st .meta{grid-column:2;display:flex;flex-wrap:wrap;gap:2px 14px;font-size:12.5px;color:var(--mut)}
+.st .meta b{color:var(--ink)}
+@media(max-width:600px){.st{grid-template-columns:1fr}.st .meta{grid-column:1}}
+.meter{height:16px;background:var(--soft);border-radius:8px;position:relative;overflow:hidden;margin:8px 0}
+.meter span{position:absolute;inset:0 auto 0 0;background:var(--blue);border-radius:8px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.chip{border:1px solid var(--line);background:var(--panel);border-radius:999px;padding:6px 12px;font-weight:700;font-size:13px;min-height:36px}
+.chip.on{background:var(--blue);border-color:var(--blue);color:#fff}
+table{border-collapse:collapse;width:100%;font-size:13.5px}
+th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{font-size:12.5px;color:var(--mut);font-weight:700;white-space:nowrap}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+tr.sub td{font-weight:800;background:var(--soft)}
+tr.tot td{font-weight:900;border-top:2px solid var(--ink)}
+tbody tr.click{cursor:pointer}
+tbody tr.click:hover td{background:var(--soft)}
+th.sort{cursor:pointer}
+.scroll{overflow-x:auto}
+.heat td.n{min-width:58px}
+.tag{display:inline-block;border-radius:6px;padding:1px 7px;font-size:12px;font-weight:800;white-space:nowrap}
+.t-open{background:light-dark(#eef1f4,#26343e);color:var(--mut)}
+.t-won{background:light-dark(#e2f4ea,#173a28);color:var(--green)}
+.t-lost{background:light-dark(#fbe6e6,#3d1d1d);color:var(--red)}
+.tl{list-style:none;padding:0;margin:6px 0 0;display:grid;gap:4px;font-size:13px}
+.tl li{padding-left:16px;position:relative}
+.tl li::before{content:"";position:absolute;left:2px;top:7px;width:7px;height:7px;border-radius:50%;background:var(--blue)}
+.cfg input[type=number],.cfg input[type=text],.cfg select{min-height:40px;border:1px solid var(--line);border-radius:8px;background:var(--panel);padding:4px 8px;font-size:16px;width:100%;max-width:240px}
+.cfg input[type=number]{max-width:110px;text-align:right}
+.pager{display:flex;gap:8px;align-items:center;justify-content:flex-end;margin-top:10px;flex-wrap:wrap}
+.btn{min-height:40px;border:1px solid var(--line);background:var(--panel);border-radius:10px;padding:6px 14px;font-weight:700}
+.btn.pr{background:var(--blue);border-color:var(--blue);color:#fff}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+.search{min-height:40px;border:1px solid var(--line);border-radius:10px;background:var(--panel);padding:6px 12px;font-size:16px;width:min(320px,100%)}
+#tip{position:fixed;pointer-events:none;background:var(--ink);color:var(--bg);padding:8px 10px;border-radius:9px;font-size:12.5px;z-index:60;max-width:260px;opacity:0;transition:opacity .1s}
+#tip b{display:block;margin-bottom:2px}
+.flow{display:grid;gap:10px}
+.fl{display:grid;grid-template-columns:minmax(0,210px) minmax(0,1fr) 70px;gap:10px;align-items:center;font-size:13.5px}
+.fl .n{text-align:right;font-weight:800}
+@media(max-width:600px){.fl{grid-template-columns:minmax(0,1fr) 60px}.fl .track{grid-column:1/-1;order:3}.row{grid-template-columns:minmax(0,1fr) auto}.row .track{grid-column:1/-1;order:3}}
+.foot{font-size:12.5px;color:var(--mut);margin-top:22px}
+@media(max-width:600px){table{font-size:13px}.stack thead{display:none}.stack tr{display:grid;padding-block:10px;border-bottom:1px solid var(--line)}.stack td{display:flow-root;border:0;padding:3px 0;padding-inline-start:9em;text-align:start}.stack td::before{content:attr(data-l);float:inline-start;width:8.5em;margin-inline-start:-9em;white-space:normal;color:var(--mut);font-size:12px}.stack td:empty{display:none}}
+@media(prefers-reduced-motion:reduce){.card{transition:none}}
+</style>
+<script>new MutationObserver(()=>{for(const c of document.querySelectorAll('.stack td:not([data-l])')){let i=0,p=c;while(p=p.previousElementSibling)i+=p.colSpan;const t=c.closest('table');c.dataset.l=t&&t.rows[0]&&t.rows[0].cells[i]?t.rows[0].cells[i].textContent:''}}).observe(document,{childList:true,subtree:true})</script>
+</head>
+<body>
+<header class="top">
+  <div class="bar1">
+    <div class="brand"><svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="9" fill="#1694D2"/><path d="M9 8h7a8 8 0 0 1 0 16H9z" fill="#fff"/><circle cx="16" cy="16" r="3.2" fill="#1694D2"/></svg>BI Comercial <span>Grupo Digna</span></div>
+    <div class="ctx" id="ctx" aria-live="polite"></div>
+    <div class="fresh" id="fresh"></div>
+  </div>
+  <div class="filters" id="filters"></div>
+  <div class="more" id="more" hidden></div>
+  <nav class="tabs" id="tabs" aria-label="Telas"></nav>
+</header>
+<main id="main"></main>
+<div id="tip" role="tooltip"></div>
+<script>
+{
+/* ================= utilidades ================= */
+const $=s=>document.querySelector(s);
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const nf=new Intl.NumberFormat('pt-BR'),nf1=new Intl.NumberFormat('pt-BR',{maximumFractionDigits:1,minimumFractionDigits:1});
+const brl0=new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL',maximumFractionDigits:0});
+const brl2=new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL',minimumFractionDigits:2,maximumFractionDigits:2});
+const N=v=>v==null?'—':nf.format(Math.round(v));
+const PC=v=>v==null||!isFinite(v)?'—':nf1.format(v*100)+'%';
+const R=v=>v==null||!isFinite(v)?null:(Math.abs(v)<1000?brl2:brl0).format(v);
+const RT=v=>R(v)||'—';
+const ratio=(a,b)=>b?a/b:null;
+const median=a=>{if(!a.length)return null;const s=[...a].sort((x,y)=>x-y),m=s.length>>1;return s.length%2?s[m]:(s[m-1]+s[m])/2};
+const DAY=864e5;
+const MES=['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
+const MESC=['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+const p2=n=>String(n).padStart(2,'0');
+const fD=t=>{const d=new Date(t);return p2(d.getUTCDate())+'/'+p2(d.getUTCMonth()+1)+'/'+d.getUTCFullYear()};
+const fDs=t=>{const d=new Date(t);return p2(d.getUTCDate())+'/'+p2(d.getUTCMonth()+1)};
+const fDT=t=>fD(t)+' '+p2(new Date(t).getUTCHours())+':'+p2(new Date(t).getUTCMinutes());
+const ym=t=>{const d=new Date(t);return d.getUTCFullYear()+'-'+p2(d.getUTCMonth()+1)};
+const sod=t=>{const d=new Date(t);return Date.UTC(d.getUTCFullYear(),d.getUTCMonth(),d.getUTCDate())};
+const som=t=>{const d=new Date(t);return Date.UTC(d.getUTCFullYear(),d.getUTCMonth(),1)};
+const addM=(t,k)=>{const d=new Date(t);return Date.UTC(d.getUTCFullYear(),d.getUTCMonth()+k,1)};
+const iso=t=>{const d=new Date(t);return d.getUTCFullYear()+'-'+p2(d.getUTCMonth()+1)+'-'+p2(d.getUTCDate())};
+const fromIso=s=>{const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(s||'');return m?Date.UTC(+m[1],+m[2]-1,+m[3]):null};
+
+/* ================= dados do RD CRM ================= */
+const OFF=3*3600e3;const L=s=>s*1000-OFF;
+let NOW=Date.now()-OFF,HIST=NOW,GEN=null,META=null,STATUS=null,DICT={src:[],camp:[],user:[],reason:[],city:[],utm:[]};
+const MARCAS={pd:'Plano Digna',pp:'Parque da Paz',ou:'Outras operações'};
+const GRUPOS={entrada:'Entrada',abordagem:'Abordagem',qualificacao:'Qualificação',proposta:'Proposta',negociacao:'Negociação',propria:'Etapa própria'};
+const cleanMot=raw=>{if(raw==null||!String(raw).trim())return null;let s=String(raw).trim().replace(/\s+/g,' ');
+ const fix={'Ã§':'ç','Ã¡':'á','Ãª':'ê','Ã£':'ã','Ã©':'é','Ã³':'ó','Ãº':'ú','Ã­':'í','Ã¢':'â','Ãµ':'õ','Ã‡':'Ç','Ã‰':'É','Ã´':'ô','Ã ':'à'};for(const k in fix)s=s.split(k).join(fix[k]);
+ s=s.toLowerCase();return s.charAt(0).toUpperCase()+s.slice(1)};
+const guessM=n=>/parque|jazig|cremat|cemit|ppaz/i.test(n)?'pp':'pd';
+const guessEq=n=>/qualif|visita/i.test(n)?'qualificacao':/propost|apresent|or[cç]amento/i.test(n)?'proposta':/negocia|fechament/i.test(n)?'negociacao':/contato|abord|tentativa|conect|liga[cç]/i.test(n)?'abordagem':/entrada|novo|lead|inicial|base/i.test(n)?'entrada':'propria';
+let FUN=[],FI={},D=[],CI={},MOTRAW={},LISTS={};const CONT_DEALS=new Map();
+let cfg={qual:{},eq:{},marca:{},metas:{},orc:{}};let CFG_SRC='padrão';
+function loadData(bi){META=bi.meta;GEN=L(META.generated_at);HIST=L(META.track_start);DICT=bi.dict;
+ FUN=bi.pipelines.map(p=>({id:p.id,n:p.name,st:p.stages.map(s=>s.name),m:'pd'}));FI=Object.fromEntries(FUN.map(f=>[f.id,f]));
+ CI=Object.fromEntries(DICT.camp.map((n,i)=>[String(i),{n}]));
+ const dv=(k,i)=>i>=0?DICT[k][i]:null;
+ D=bi.deals.map(r=>{const [id,pi,si,st,c,cl,src,camp,user,reason,ck,city,utm,amt]=r;const f=bi.pipelines[pi];
+  const d={id,cf:f.id,cs:Math.max(0,si),st:st==='w'?'won':st==='l'?'lost':'open',hold:st==='p',c:L(c),ca:cl?L(cl):null,o:dv('src',src)||'Não informada',cp:camp>=0?String(camp):null,ow:dv('user',user)||'Sem responsável',pr:dv('city',city)||'Não informada',utm:dv('utm',utm),mr:dv('reason',reason),cid:ck||('n'+id),am:amt,mo:null,lf:null,ls:null};
+  if(d.st!=='open'&&d.ca==null)d.ca=d.c;
+  if(d.st==='lost'){d.mo=cleanMot(d.mr);d.lf=d.cf;d.ls=d.cs;if(d.mr!=null)MOTRAW[d.mr]=(MOTRAW[d.mr]||0)+1}
+  const hv=bi.hist[id];let h=hv&&hv.length?hv.filter(e=>e[0]>=0&&e[1]>=0).map(e=>({f:bi.pipelines[e[0]].id,s:e[1],t:e[2]?L(e[2]):d.c})):null;
+  d.hh=!!(h&&h.length)&&d.c>=HIST;
+  if(!h||!h.length)h=[{f:d.cf,s:d.cs,t:d.c}];
+  const last=h[h.length-1];if(last.f!==d.cf||last.s!==d.cs)h.push({f:d.cf,s:d.cs,t:Math.max(last.t,d.c)});
+  for(let i=1;i<h.length;i++)if(h[i].f!==h[i-1].f)h[i].tr=1;
+  d.h=h;d.fs=[...new Set(h.map(e=>e.f))];d.ef=h[0].f;return d});
+ CONT_DEALS.clear();for(const d of D){if(!CONT_DEALS.has(d.cid))CONT_DEALS.set(d.cid,[]);CONT_DEALS.get(d.cid).push(d)}
+ const cnt=k=>{const m={};for(const d of D)m[d[k]]=(m[d[k]]||0)+1;return Object.keys(m).sort((a,b)=>m[b]-m[a])};
+ LISTS={owner:cnt('ow').sort(),origem:cnt('o'),praca:cnt('pr'),motivo:[...new Set(D.filter(d=>d.st==='lost').map(d=>d.mo||'Motivo não informado'))].sort()}}
+function defaults(){for(const f of FUN){if(cfg.qual[f.id]==null){const i=f.st.findIndex(s=>/qualifica/i.test(s));cfg.qual[f.id]=i}
+  if(!cfg.eq[f.id]||cfg.eq[f.id].length!==f.st.length)cfg.eq[f.id]=f.st.map(guessEq);if(!cfg.marca[f.id])cfg.marca[f.id]=guessM(f.n)}}
+function applyBrand(){for(const f of FUN)f.m=cfg.marca[f.id]||'pd';for(const d of D)d.m=FI[d.ef].m}
+const saveCfg=()=>{try{localStorage.setItem('bi-digna-cfg-v2',JSON.stringify(cfg))}catch(e){}};
+function deriveQ(){for(const d of D){d.qa=null;d.qf=null;for(const e of d.h){const q=cfg.qual[e.f];if(q!=null&&q>=0&&e.s>=q){d.qa=e.t;d.qf=e.f;break}}
+  if(d.qa==null&&d.st==='won'&&cfg.qual[d.cf]>=0){d.qa=d.ca;d.qf=d.cf}d.qi=!d.hh&&d.qa!=null}}
+const meta=(f,k)=>Object.assign({q:0,v:0},cfg.metas[f+'|'+k]||{});
+const orc=(m,k)=>cfg.orc[m+'|'+k]||0;
+/* ================= estado ================= */
+const TABS=[['visao-geral','Visão geral'],['funil','Funil'],['qualificacao','Qualificação'],['perdas','Perdas'],['midia','Origens e campanhas'],['entre-funis','Entre funis'],['detalhamento','Detalhamento'],['configuracoes','Configurações']];
+const S={tab:'visao-geral',mode:'entrada',per:'mes',cf:null,ct:null,cmp:'ant',ccf:null,cct:null,gran:'auto',ff:null,tp:null,distP:false,drill:'leads',dq:'',dsort:{k:'c',d:-1},dpage:0,open:null,more:false,cfgM:ym(NOW),
+ f:{marca:new Set,funil:new Set,owner:new Set,origem:new Set,camp:new Set,etapa:new Set,status:new Set,motivo:new Set,praca:new Set}};
+const FL={marca:'Marca',funil:'Funil',owner:'Responsável',origem:'Origem',camp:'Campanha',etapa:'Etapa',status:'Status',motivo:'Motivo de perda',praca:'Praça'};
+const MORE=['owner','origem','camp','etapa','status','motivo','praca'];
+const STL={open:'Em andamento',won:'Ganho',lost:'Perdido'};
+const visFun=()=>FUN.filter(f=>!S.f.marca.size||S.f.marca.has(f.m)).filter(f=>!S.f.funil.size||S.f.funil.has(f.id));
+function opts(k){
+ switch(k){
+ case 'marca':return Object.entries(MARCAS).filter(([v])=>FUN.some(f=>f.m===v)).map(([v,t])=>({v,t}));
+ case 'funil':return FUN.filter(f=>!S.f.marca.size||S.f.marca.has(f.m)).map(f=>({v:f.id,t:f.n,g:MARCAS[f.m]}));
+ case 'owner':return LISTS.owner.map(v=>({v,t:v}));
+ case 'origem':return LISTS.origem.map(v=>({v,t:v}));
+ case 'camp':return [...DICT.camp.map((n,i)=>({v:String(i),t:n})).sort((x,y)=>x.t.localeCompare(y.t)),{v:'__none',t:'Sem campanha'}];
+ case 'etapa':return visFun().flatMap(f=>f.st.map((s,i)=>({v:f.id+'|'+i,t:s,g:f.n})));
+ case 'status':return Object.entries(STL).map(([v,t])=>({v,t}));
+ case 'motivo':return LISTS.motivo.map(v=>({v,t:v}));
+ case 'praca':return LISTS.praca.map(v=>({v,t:v}))}}
+
+function range(){const n=NOW;let a,b=n;
+ switch(S.per){case 'hoje':a=sod(n);break;case 'ontem':a=sod(n)-DAY;b=sod(n);break;
+ case 'semana':{const wd=(new Date(n).getUTCDay()+6)%7;a=sod(n)-wd*DAY;break}
+ case 'mes':a=som(n);break;case 'mesant':a=addM(n,-1);b=som(n);break;case 'ano':a=Date.UTC(new Date(n).getUTCFullYear(),0,1);break;
+ case '7d':a=sod(n)-6*DAY;break;case '30d':a=sod(n)-29*DAY;break;case '90d':a=sod(n)-89*DAY;break;
+ case 'custom':a=S.cf!=null?S.cf:som(n);b=Math.min(n,(S.ct!=null?S.ct:sod(n))+DAY);if(b<=a)b=Math.min(n,a+DAY);if(b<=a){a=sod(n);b=n}break}
+ return [a,b]}
+function crange(a,b){if(S.cmp==='none')return null;
+ if(S.cmp==='yoy'){const sh=t=>{const d=new Date(t);return Date.UTC(d.getUTCFullYear()-1,d.getUTCMonth(),d.getUTCDate(),d.getUTCHours(),d.getUTCMinutes())};return [sh(a),sh(b)]}
+ if(S.cmp==='custom'){const x=S.ccf,y=S.cct;if(x==null||y==null)return null;return [x,y+DAY]}
+ if(S.per==='mes'||S.per==='mesant'){const pa=addM(a,-1);return [pa,Math.min(pa+(b-a),a)]}
+ if(S.per==='ano'){const sh=t=>{const d=new Date(t);return Date.UTC(d.getUTCFullYear()-1,d.getUTCMonth(),d.getUTCDate(),d.getUTCHours())};return [sh(a),sh(b)]}
+ return [a-(b-a),a]}
+function plabel(a,b){const d=new Date(a);if(S.per==='mes'||S.per==='mesant')return MES[d.getUTCMonth()]+' de '+d.getUTCFullYear()+(b>=NOW-1?' (até '+fDs(NOW)+')':'');
+ if(S.per==='ano')return String(d.getUTCFullYear())+' (até '+fDs(NOW)+')';if(S.per==='hoje')return 'hoje';if(S.per==='ontem')return 'ontem';
+ if(b-a<=DAY&&sod(a)===sod(b-1))return fD(a);return fD(a)+' a '+fD(b-1)}
+
+/* ================= filtros e métricas ================= */
+let SELC=null;
+function passD(d){const f=S.f;
+ if(f.marca.size&&!f.marca.has(d.m))return false;
+ if(f.funil.size&&!d.fs.some(x=>f.funil.has(x)))return false;
+ if(f.owner.size&&!f.owner.has(d.ow))return false;
+ if(f.origem.size&&!f.origem.has(d.o))return false;
+ if(f.camp.size&&!f.camp.has(d.cp||'__none'))return false;
+ if(f.etapa.size&&!f.etapa.has(d.cf+'|'+d.cs))return false;
+ if(f.status.size&&!f.status.has(d.st))return false;
+ if(f.motivo.size&&!(d.st==='lost'&&f.motivo.has(d.mo||'Motivo não informado')))return false;
+ if(f.praca.size&&!f.praca.has(d.pr))return false;return true}
+const SEL=()=>SELC||(SELC=D.filter(passD));
+const uniq=a=>new Set(a.map(d=>d.cid)).size;
+function K(a,b,asOf){const X=asOf||NOW;const sel=SEL(),ev=S.mode==='eventos';const ent=sel.filter(d=>d.c>=a&&d.c<b);
+ const qd=d=>d.qa!=null&&d.qa<X,cl=(d,st)=>d.st===st&&d.ca<X,op=d=>d.c<X&&!(d.ca!=null&&d.ca<X);
+ const q=ev?sel.filter(d=>d.qa!=null&&d.qa>=a&&d.qa<b):ent.filter(qd);
+ const w=ev?sel.filter(d=>d.st==='won'&&d.ca>=a&&d.ca<b):ent.filter(d=>cl(d,'won'));
+ const l=ev?sel.filter(d=>d.st==='lost'&&d.ca>=a&&d.ca<b):ent.filter(d=>cl(d,'lost'));
+ const o=ev?sel.filter(op):ent.filter(op);
+ const att=x=>x.filter(d=>d.cp);const lm=att(ent),qm=att(q),wm=att(w);
+ return {a,b,ent,q,w,l,o,lm,qm,wm,leads:ent.length,cont:uniq(ent),qual:q.length,tq:ev?null:ratio(q.length,ent.length),and:o.length,vend:w.length,tv:ev?null:ratio(w.length,ent.length),perd:l.length,
+  inv:null,cpl:null,cpq:null,cmv:null,flag:[],qinf:q.filter(d=>d.qi).length}}
+function buckets(a,b){let g=S.gran;const span=(b-a)/DAY;if(g==='hora'&&span>3)g='dia';if(g==='auto')g=span<=2?'hora':span<=35?'dia':span<=130?'semana':'mes';const out=[];
+ if(g==='hora'){for(let t=a-(a%3600e3);t<b;t+=3600e3)out.push({a:Math.max(t,a),b:Math.min(t+3600e3,b),l:p2(new Date(t).getUTCHours())+'h'+(span>1?' '+fDs(t):'')})}
+ else if(g==='dia'){for(let t=sod(a);t<b;t+=DAY)out.push({a:Math.max(t,a),b:Math.min(t+DAY,b),l:fDs(t)})}
+ else if(g==='semana'){let t=sod(a)-((new Date(a).getUTCDay()+6)%7)*DAY;for(;t<b;t+=7*DAY)out.push({a:Math.max(t,a),b:Math.min(t+7*DAY,b),l:fDs(Math.max(t,a))})}
+ else{for(let t=som(a);t<b;t=addM(t,1)){const d=new Date(t);out.push({a:Math.max(t,a),b:Math.min(addM(t,1),b),l:MESC[d.getUTCMonth()]+'/'+String(d.getUTCFullYear()).slice(2)})}}
+ return {g,out}}
+function metaPer(a,b,kind){const fs=visFun().filter(f=>cfg.qual[f.id]>=0||kind==='v').map(f=>f.id);
+ let s=0;for(let t=som(a);t<b;t=addM(t,1)){const e=addM(t,1),dm=(e-t)/DAY;const ov=(Math.min(e,b)-Math.max(t,a))/DAY;if(ov<=0)continue;const k=ym(t);for(const f of fs)s+=meta(f,k)[kind]*ov/dm}
+ return s>0?s:null}
+
+/* ================= gráficos ================= */
+const tip=$('#tip');
+function showTip(ev,html){tip.innerHTML=html;tip.style.opacity=1;const w=tip.offsetWidth,h=tip.offsetHeight;let x=ev.clientX+14,y=ev.clientY+14;if(x+w>innerWidth-8)x=ev.clientX-w-14;if(y+h>innerHeight-8)y=ev.clientY-h-14;tip.style.left=Math.max(6,x)+'px';tip.style.top=Math.max(6,y)+'px'}
+const hideTip=()=>{tip.style.opacity=0};
+document.addEventListener('mousemove',ev=>{const t=ev.target.closest&&ev.target.closest('[data-tip]');if(t)showTip(ev,t.dataset.tip);else if(!ev.target.closest('.fig'))hideTip()});
+const niceMax=v=>{if(!(v>0))return 1;const p=10**Math.floor(Math.log10(v)),r=v/p;return (r<=1?1:r<=2?2:r<=2.5?2.5:r<=5?5:10)*p};
+const short=v=>Math.abs(v)>=1e6?nf1.format(v/1e6)+' mi':Math.abs(v)>=1e3?nf.format(Math.round(v/100)/10)+' mil':nf.format(Math.round(v));
+const ROS=new Map();
+function xy(id,o){const el=document.getElementById(id);if(!el)return;el._o=o;if(!ROS.has(el)){const ro=new ResizeObserver(()=>drawXY(el));ro.observe(el);ROS.set(el,ro)}drawXY(el)}
+function drawXY(el){const o=el._o;if(!o)return;const W=el.clientWidth,H=el.clientHeight;if(!W||!H)return;const sm=W<520,hasR=o.series.some(s=>s.ax==='r');
+ const m={l:sm?34:50,r:hasR?(sm?36:54):10,t:14,b:26},iw=W-m.l-m.r,ih=H-m.t-m.b,n=o.labels.length,bw=iw/Math.max(1,n);
+ const Ls=o.series.filter(s=>s.ax!=='r'),Rs=o.series.filter(s=>s.ax==='r'),bars=Ls.filter(s=>s.t==='bar');
+ let mx=0;if(o.stack){for(let i=0;i<n;i++)mx=Math.max(mx,bars.reduce((x,s)=>x+(s.v[i]||0),0));for(const s of Ls)if(s.t!=='bar')for(const v of s.v)mx=Math.max(mx,v||0)}else for(const s of Ls)for(const v of s.v)mx=Math.max(mx,v||0);
+ if(o.marks)for(const v of o.marks)mx=Math.max(mx,v||0);if(!o.fl)mx=Math.max(mx,4);mx=niceMax(mx*1.05);let mr=0;for(const s of Rs)for(const v of s.v)mr=Math.max(mr,v||0);mr=niceMax(mr*1.05);
+ const y=v=>m.t+ih-(v/mx)*ih,yr=v=>m.t+ih-(v/mr)*ih,fl=o.fl||short,fr=o.fr||short;let g='';
+ for(let k=0;k<=4;k++){const v=mx*k/4,yy=y(v);g+=`<line x1="${m.l}" x2="${W-m.r}" y1="${yy}" y2="${yy}" stroke="var(--line)"/>`;if(!sm||k%2===0)g+=`<text x="${m.l-6}" y="${yy+4}" text-anchor="end" font-size="11" fill="var(--mut)">${esc(fl(v))}</text>`;if(hasR&&(!sm||k%2===0))g+=`<text x="${W-m.r+6}" y="${yr(mr*k/4)+4}" font-size="11" fill="var(--mut)">${esc(fr(mr*k/4))}</text>`}
+ const step=Math.max(1,Math.ceil(n/(iw/(sm?46:62))));for(let i=0;i<n;i+=step)g+=`<text x="${m.l+bw*(i+.5)}" y="${H-8}" text-anchor="middle" font-size="11" fill="var(--mut)">${esc(o.labels[i])}</text>`;
+ const gw=bw*.72;for(let i=0;i<n;i++){let acc=0;bars.forEach((s,j)=>{const v=s.v[i]||0;if(o.stack){const y1=y(acc+v),y0=y(acc);g+=`<rect x="${m.l+bw*i+(bw-gw)/2}" y="${y1}" width="${gw}" height="${Math.max(0,y0-y1)}" fill="${s.c}"/>`;acc+=v}else{const w2=gw/bars.length;g+=`<rect x="${m.l+bw*i+(bw-gw)/2+w2*j}" y="${y(v)}" width="${Math.max(1,w2-1)}" height="${Math.max(0,m.t+ih-y(v))}" rx="2" fill="${s.c}"/>`}})}
+ if(o.marks)o.marks.forEach((v,i)=>{if(v==null)return;g+=`<line x1="${m.l+bw*i+bw*.08}" x2="${m.l+bw*(i+1)-bw*.08}" y1="${y(v)}" y2="${y(v)}" stroke="var(--ink)" stroke-width="2.5" stroke-dasharray="4 3"/>`});
+ if(o.tops)o.tops.forEach((t,i)=>{if(t==null||sm&&n>8)return;const top=bars.reduce((x,s)=>Math.max(x,o.stack?x:(s.v[i]||0)),0);g+=`<text x="${m.l+bw*(i+.5)}" y="${Math.min(y(top),o.marks?y(o.marks[i]||0):1e9)-6}" text-anchor="middle" font-size="11" font-weight="700" fill="var(--ink)">${esc(t)}</text>`});
+ for(const s of o.series.filter(s=>s.t!=='bar')){const Y=s.ax==='r'?yr:y;const pts=s.v.map((v,i)=>v==null?null:[m.l+bw*(i+.5),Y(v)]);let d='',pen=false;for(const p of pts){if(!p){pen=false;continue}d+=(pen?'L':'M')+p[0].toFixed(1)+','+p[1].toFixed(1);pen=true}
+  g+=`<path d="${d}" fill="none" stroke="${s.c}" stroke-width="2.5" ${s.dash?'stroke-dasharray="5 4"':''} stroke-linejoin="round"/>`;if(n<=40)for(const p of pts)if(p)g+=`<circle cx="${p[0]}" cy="${p[1]}" r="3" fill="${s.c}"/>`}
+ g+=`<rect class="hov" x="0" y="0" width="0" height="${ih}" fill="var(--ink)" opacity=".06"/>`;
+ el.innerHTML=`<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(o.aria||'gráfico')}">${g}</svg>`;
+ const svg=el.firstChild,hov=svg.querySelector('.hov');
+ svg.addEventListener('mousemove',ev=>{const r=svg.getBoundingClientRect();const i=Math.floor((ev.clientX-r.left-m.l)/bw);if(i<0||i>=n){hov.setAttribute('width',0);hideTip();return}
+  hov.setAttribute('x',m.l+bw*i);hov.setAttribute('y',m.t);hov.setAttribute('width',bw);
+  let h=`<b>${esc(o.tipL?o.tipL[i]:o.labels[i])}</b>`;for(const s of o.series)h+=`${esc(s.n)}: ${esc((s.ft||(s.ax==='r'?(o.ftr||N):(o.ft||N)))(s.v[i]))}<br>`;if(o.marks)h+=`${esc(o.markN||'Meta')}: ${esc(N(o.marks[i]))}`;if(o.extra)h+=o.extra(i);showTip(ev,h)});
+ svg.addEventListener('mouseleave',()=>{hov.setAttribute('width',0);hideTip()})}
+const leg=a=>`<div class="leg">${a.map(([n,c,ln])=>`<span><i class="${ln?'ln':''}" style="background:${c}"></i>${esc(n)}</span>`).join('')}</div>`;
+const bars=(list,fmt)=>{const mx=Math.max(1,...list.map(x=>x.v||0));return `<div class="rows">${list.map(x=>`<div class="row" data-tip="${esc('<b>'+esc(x.l)+'</b>'+(x.tip||''))}"><span>${esc(x.l)}</span><div class="track"><span style="width:${(x.v||0)/mx*100}%;background:${x.c||'var(--blue)'}"></span></div><span class="n">${esc(fmt?fmt(x.v):x.t)}</span></div>`).join('')||'<p class="mut">Sem dados para os filtros aplicados.</p>'}</div>`};
+const delta=(v,c,inv)=>{if(v==null||c==null||!isFinite(v)||!isFinite(c))return '<span class="dl eq">sem comparação</span>';if(c===0)return v===0?'<span class="dl eq">igual</span>':'<span class="dl eq">antes: 0</span>';
+ const r=(v-c)/Math.abs(c);const good=inv?r<0:r>0;const cls=Math.abs(r)<.005?'eq':good?'up':'dn';return `<span class="dl ${cls}">${r>0?'▲':r<0?'▼':'■'} ${nf1.format(Math.abs(r)*100)}%</span> <span class="dl eq">vs ${esc(typeof c==='number'&&c<5&&c>0&&c%1?PC(c):'')}</span>`};
+const dlt=(v,c,inv,fmt)=>{if(v==null||c==null||!isFinite(v)||!isFinite(c))return '<span class="dl eq">sem base de comparação</span>';if(c===0)return '<span class="dl eq">anterior: 0</span>';const r=(v-c)/Math.abs(c);const cls=Math.abs(r)<.005?'eq':(inv?r<0:r>0)?'up':'dn';return `<span class="dl ${cls}">${r>0?'▲':r<0?'▼':'■'} ${nf1.format(Math.abs(r)*100)}%</span> <span class="dl eq">antes ${esc(fmt(c))}</span>`};
+
+/* ================= cabeçalho e filtros ================= */
+function renderTop(){const [a,b]=range();const vf=visFun();
+ $('#ctx').innerHTML=`<span class="pill">${esc(S.f.marca.size?[...S.f.marca].map(m=>MARCAS[m]).join(' + '):'Todas as marcas')}</span><span class="pill">${esc(S.f.funil.size?vf.map(f=>f.n).join(', '):'Todos os funis ('+vf.length+')')}</span><span class="pill gr">${esc(plabel(a,b))} · ${S.mode==='entrada'?'por entrada':'por eventos'}</span>`;
+ $('#fresh').innerHTML=freshHtml();
+ const msb=k=>{const s=S.f[k];const o=opts(k);const lbl=!s.size?(k==='marca'?'Todas':'Todos'):s.size===1?(o.find(x=>s.has(x.v))||{t:'1 selecionado'}).t:s.size+' selecionados';return `<div class="ms" data-k="${k}"><button class="fb ${s.size?'on':''}" data-ms="${k}" aria-expanded="false"><span class="k">${esc(FL[k])}:</span><b>${esc(lbl)}</b></button></div>`};
+ const nm=MORE.filter(k=>S.f[k].size).length;
+ $('#filters').innerHTML=msb('marca')+msb('funil')+
+  `<select class="sel" id="per" aria-label="Período">${[['hoje','Hoje'],['ontem','Ontem'],['semana','Esta semana'],['7d','Últimos 7 dias'],['mes','Este mês'],['mesant','Mês anterior'],['30d','Últimos 30 dias'],['90d','Últimos 90 dias'],['ano','Este ano'],['custom','Datas escolhidas']].map(([v,t])=>`<option value="${v}" ${S.per===v?'selected':''}>${t}</option>`).join('')}</select>`+
+  `<span class="dates"><label class="sm mut" for="cf">De</label><input type="date" class="datei" id="cf" value="${iso(a)}" min="${iso(MIND)}" max="${iso(NOW)}"><label class="sm mut" for="ct">até</label><input type="date" class="datei" id="ct" value="${iso(b-1)}" min="${iso(MIND)}" max="${iso(NOW)}"></span>`+
+  `<select class="sel" id="cmp" aria-label="Comparação">${[['ant','vs período anterior'],['yoy','vs mesmo período do ano anterior'],['custom','vs intervalo personalizado'],['none','sem comparação']].map(([v,t])=>`<option value="${v}" ${S.cmp===v?'selected':''}>${t}</option>`).join('')}</select>`+
+  (S.cmp==='custom'?`<input type="date" class="datei" id="ccf" value="${S.ccf!=null?iso(S.ccf):''}" min="${iso(MIND)}" max="${iso(NOW)}" aria-label="Comparar de"><input type="date" class="datei" id="cct" value="${S.cct!=null?iso(S.cct):''}" min="${iso(MIND)}" max="${iso(NOW)}" aria-label="Comparar até">`:'')+
+  `<div class="seg" role="group" aria-label="Forma de análise"><button data-mode="entrada" class="${S.mode==='entrada'?'on':''}" title="Dos negócios criados no período, quantos qualificaram ou compraram até agora">Por entrada</button><button data-mode="eventos" class="${S.mode==='eventos'?'on':''}" title="Qualificações, vendas e perdas que aconteceram no período">Por eventos</button></div>`+
+  `<button class="fb ${nm?'on':''}" id="morebtn" aria-expanded="${S.more}"><b>Mais filtros${nm?' ('+nm+')':''}</b></button>`+
+  (Object.values(S.f).some(s=>s.size)?`<button class="lnk" id="clear">Limpar filtros</button>`:'');
+ const more=$('#more');more.hidden=!S.more;more.innerHTML=MORE.map(msb).join('');
+ $('#tabs').innerHTML=TABS.map(([id,t])=>`<a href="#${id}" class="${S.tab===id?'on':''}">${t}</a>`).join('')}
+function staleCls(){return (STATUS&&STATUS.ok===false)||NOW-GEN>3*3600e3?'w':''}
+function freshHtml(){return `<span><span class="dot ${staleCls()}"></span>RD CRM ${esc(fDT(GEN))}${NOW-GEN>3*3600e3?' · desatualizado':' · a cada hora'}</span><span><span class="dot w"></span>Mídia: integração pendente</span><span>Histórico de etapas desde ${esc(fD(HIST))}</span>`}
+let MIND=Date.UTC(2015,0,1);
+let popK=null;
+function openPop(k,btn){closePop();popK=k;const o=opts(k),s=S.f[k];let last=null;
+ const html=`<div class="pop" role="dialog" aria-label="${esc(FL[k])}"><div class="acts"><button class="lnk" data-all="${k}">${k==='marca'?'Todas':'Todos'}</button>${o.length>6?'<button class="lnk" data-none="'+k+'">Marcar todos</button>':''}</div>`+
+  o.map(x=>{let g='';if(x.g&&x.g!==last){g=`<div class="g">${esc(x.g)}</div>`;last=x.g}return g+`<label><input type="checkbox" data-opt="${k}" value="${esc(x.v)}" ${s.has(x.v)?'checked':''}><span>${esc(x.t)}</span></label>`}).join('')+'</div>';
+ btn.parentElement.insertAdjacentHTML('beforeend',html);btn.setAttribute('aria-expanded','true')}
+function closePop(){document.querySelectorAll('.pop').forEach(p=>p.remove());document.querySelectorAll('[data-ms]').forEach(b=>b.setAttribute('aria-expanded','false'));popK=null}
+function updMsLabel(k){const b=document.querySelector(`[data-ms="${k}"]`);if(!b)return;const s=S.f[k],o=opts(k);b.classList.toggle('on',s.size>0);b.querySelector('b').textContent=!s.size?(k==='marca'?'Todas':'Todos'):s.size===1?((o.find(x=>s.has(x.v))||{t:'1 selecionado'}).t):s.size+' selecionados'}
+function prune(){const vf=new Set(opts('funil').map(x=>x.v));for(const v of [...S.f.funil])if(!vf.has(v))S.f.funil.delete(v);const ve=new Set(opts('etapa').map(x=>x.v));for(const v of [...S.f.etapa])if(!ve.has(v))S.f.etapa.delete(v)}
+const hdr=document.querySelector('.top');
+hdr.addEventListener('click',ev=>{const t=ev.target;
+ const ms=t.closest('[data-ms]');if(ms){const k=ms.dataset.ms;if(popK===k)closePop();else openPop(k,ms);return}
+ const al=t.closest('[data-all]');if(al){const k=al.dataset.all;S.f[k].clear();prune();refresh(true);const b=document.querySelector(`[data-ms="${k}"]`);if(b)openPop(k,b);return}
+ const nn=t.closest('[data-none]');if(nn){const k=nn.dataset.none;opts(k).forEach(x=>S.f[k].add(x.v));refresh(true);const b=document.querySelector(`[data-ms="${k}"]`);if(b)openPop(k,b);return}
+ const md=t.closest('[data-mode]');if(md){S.mode=md.dataset.mode;refresh();return}
+ if(t.closest('#morebtn')){S.more=!S.more;refresh();return}
+ if(t.closest('#clear')){Object.values(S.f).forEach(s=>s.clear());refresh();return}});
+hdr.addEventListener('change',ev=>{const t=ev.target;
+ if(t.dataset.opt){const k=t.dataset.opt;t.checked?S.f[k].add(t.value):S.f[k].delete(t.value);if(k==='marca'||k==='funil')prune();updMsLabel(k);SELC=null;renderTop2();renderView();return}
+ if(t.id==='per'){const [a,b]=range();if(t.value==='custom'){S.cf=sod(a);S.ct=sod(b-1)}S.per=t.value;refresh();return}
+ if(t.id==='cmp'){S.cmp=t.value;refresh();return}
+ if(t.id==='cf'||t.id==='ct'){const v=fromIso(t.value);if(v!=null){const [a,b]=range();if(S.per!=='custom'){S.cf=sod(a);S.ct=sod(b-1)}S.per='custom';S[t.id]=v;if(S.cf>S.ct){if(t.id==='cf')S.ct=S.cf;else S.cf=S.ct}refresh()}return}
+ if(t.id==='ccf'||t.id==='cct'){const v=fromIso(t.value);if(v!=null){S[t.id]=v;refresh()}}});
+document.addEventListener('click',ev=>{if(popK&&!ev.target.closest('.ms'))closePop()});
+document.addEventListener('keydown',ev=>{if(ev.key==='Escape')closePop()});
+function renderTop2(){const keep=popK;const [a,b]=range();const vf=visFun();
+ $('#ctx').innerHTML=`<span class="pill">${esc(S.f.marca.size?[...S.f.marca].map(m=>MARCAS[m]).join(' + '):'Todas as marcas')}</span><span class="pill">${esc(S.f.funil.size?vf.map(f=>f.n).join(', '):'Todos os funis ('+vf.length+')')}</span><span class="pill gr">${esc(plabel(a,b))} · ${S.mode==='entrada'?'por entrada':'por eventos'}</span>`;
+ const mb=$('#morebtn');if(mb){const nm=MORE.filter(k=>S.f[k].size).length;mb.classList.toggle('on',nm>0);mb.querySelector('b').textContent='Mais filtros'+(nm?' ('+nm+')':'')}popK=keep}
+function refresh(keepPop){SELC=null;closePop();renderTop();renderView()}
+
+/* ================= telas ================= */
+const main=$('#main');
+const head=(t,sub)=>`<div class="head"><div><h1>${t}</h1>${sub?`<p class="mut">${sub}</p>`:''}</div></div>`;
+const evNote=()=>S.mode==='eventos'?'<p class="note">Visão por eventos: taxas de conversão aparecem apenas na visão por entrada, onde numerador e denominador são o mesmo grupo de negócios.</p>':'';
+function renderView(){const v=VIEWS[S.tab]||VIEWS['visao-geral'];ROS.forEach((ro,el)=>{if(!document.body.contains(el)){ro.disconnect();ROS.delete(el)}});main.innerHTML='';v();const w=syncNote();if(w)main.insertAdjacentHTML('afterbegin',w)}
+function syncNote(){if(STATUS&&STATUS.ok===false)return `<p class="note">A última sincronização com o RD falhou${STATUS.failed_at?' em '+esc(fDT(L(STATUS.failed_at))):''}: ${esc(STATUS.message||'erro desconhecido')}. Exibindo a última carga válida, de ${esc(fDT(GEN))}.</p>`;if(NOW-GEN>3*3600e3)return `<p class="note">Os dados não são atualizados desde ${esc(fDT(GEN))}. Confira a ação "Sincronizar RD CRM" no GitHub.</p>`;return ''}
+
+const VIEWS={};
+VIEWS['visao-geral']=()=>{const [a,b]=range(),cr=crange(a,b);const k=K(a,b),c=cr?K(cr[0],cr[1],S.mode==='entrada'?Math.min(NOW,cr[1]+(NOW-b)):cr[1]):null;const ev=S.mode==='eventos';
+ const mq=metaPer(a,b,'q');const pq=mq?k.qual/mq:null;
+ const cards=[
+  ['leads','Leads entrantes',N(k.leads),'negócios criados',k.leads,c&&c.leads],
+  ['cont','Contatos únicos',N(k.cont),'pessoas distintas',k.cont,c&&c.cont],
+  ['qual','Leads qualificados',N(k.qual),ev?'qualificações no período':'dos negócios criados',k.qual,c&&c.qual],
+  ['tq','Taxa de qualificação',ev?null:PC(k.tq),'qualificados ÷ negócios',k.tq,c&&c.tq,0,PC],
+  ['and','Em andamento',N(k.and),ev?'abertos agora':'ainda abertos',k.and,c&&c.and],
+  ['vend','Vendas',N(k.vend),'negócios ganhos',k.vend,c&&c.vend],
+  ['tv','Conversão em vendas',ev?null:PC(k.tv),'ganhos ÷ negócios',k.tv,c&&c.tv,0,PC],
+  ['perd','Perdas',N(k.perd),'negócios perdidos',k.perd,c&&c.perd,1],
+  ['inv','Investimento em mídia',R(k.inv),'integração de mídia pendente',k.inv,c&&c.inv,0,RT],
+  ['cpl','CPL',R(k.cpl),N(k.lm.length)+' leads com campanha',k.cpl,c&&c.cpl,1,RT],
+  ['cpq','Custo por qualificado',R(k.cpq),N(k.qm.length)+' qualificados com campanha',k.cpq,c&&c.cpq,1,RT],
+  ['cmv','Custo de mídia por venda',R(k.cmv),N(k.wm.length)+' vendas com campanha',k.cmv,c&&c.cmv,1,RT]];
+ const bk=buckets(a,b);const sel=SEL();
+ const ser=bk.out.map(x=>{const ent=sel.filter(d=>d.c>=x.a&&d.c<x.b);if(ev)return [ent.length,sel.filter(d=>d.qa!=null&&d.qa>=x.a&&d.qa<x.b).length,sel.filter(d=>d.st==='won'&&d.ca>=x.a&&d.ca<x.b).length];return [ent.length,ent.filter(d=>d.qa!=null).length,ent.filter(d=>d.st==='won').length]});
+ const cpqTxt=k.cpq!=null?`Custo por qualificado de ${R(k.cpq)}.`:'';
+ const title=`${N(k.qual)} leads qualificados em ${esc(plabel(a,b))}`+(pq!=null?`, ${nf.format(Math.round(pq*100))}% da meta proporcional`:'');
+ main.innerHTML=head(title,`${N(k.leads)} negócios entraram${k.tq!=null?' e '+PC(k.tq)+' já qualificaram':''}. ${cpqTxt} ${cr?'Comparação com '+esc(fD(cr[0]))+' a '+esc(fD(cr[1]-1))+(ev?'.':', medida na mesma idade dos negócios.'):''}`)+
+
+  `<div class="cards">${cards.map(([id,l,v,s,cur,cmp,inv,fm])=>`<button class="card" id="k-${id}" data-drill="${id}" title="Abrir negócios que compõem o número"><span class="l">${l}</span><span class="v ${v==null?'na':''}">${v==null?(id==='tq'||id==='tv'?'Disponível na visão por entrada':'Indisponível'):esc(v)}</span><span class="s">${esc(s)}</span>${cr&&v!=null?dlt(cur,cmp,inv,fm||N):''}</button>`).join('')}</div>`+
+  `<div class="grid g2"><div class="box flat" id="ov-evo"><div class="bh"><div><h2>Entrada, qualificação e vendas</h2><p class="mut sm">${ev?'Eventos ocorridos em cada intervalo':'Agrupado pela data de entrada do negócio; conversões contadas até a última atualização'}</p></div>
+   <div class="seg" role="group" aria-label="Granularidade">${['auto','hora','dia','semana','mes'].map(g=>`<button data-gran="${g}" class="${S.gran===g?'on':''}">${g==='auto'?'Auto':g==='mes'?'Mês':g[0].toUpperCase()+g.slice(1)}</button>`).join('')}</div></div>
+   ${leg([['Leads entrantes','var(--grey)'],['Qualificados','var(--blue)',1],['Vendas','var(--green)',1]])}<div class="fig" id="f-evo"></div></div>
+  <div class="box flat" id="ov-meta"><h2>Meta de qualificados</h2><p class="mut sm">Meta mensal proporcional aos dias do período, somando os funis visíveis. Qualificação medida pela data em que aconteceu.</p>${metaBlock(a,b)}</div></div>`;
+ xy('f-evo',{labels:bk.out.map(x=>x.l),series:[{n:'Leads entrantes',c:'var(--grey)',t:'bar',v:ser.map(x=>x[0])},{n:'Qualificados',c:'var(--blue)',v:ser.map(x=>x[1])},{n:'Vendas',c:'var(--green)',v:ser.map(x=>x[2])}],aria:'Evolução de leads, qualificados e vendas'});
+ xy('f-meta',metaChart(b))};
+function metaBlock(a,b){const sel=SEL();const qe=sel.filter(d=>d.qa!=null&&d.qa>=a&&d.qa<b).length;const mq=metaPer(a,b,'q');
+ if(!mq)return '<p class="mut">Sem metas cadastradas para a seleção.</p>';const p=qe/mq;
+ return `<p style="margin-top:10px"><span class="fig-n" style="font-size:30px;font-weight:900">${N(qe)}</span> <span class="mut">de ${N(mq)} previstos para o período</span></p><div class="meter" aria-label="Atingimento"><span style="width:${Math.min(100,p*100)}%;background:${p>=1?'var(--green)':'var(--blue)'}"></span></div><p class="sm"><b>${nf.format(Math.round(p*100))}% de atingimento</b>${qe!==K(a,b).qual?' <span class="mut">· este número segue a data da qualificação, por isso pode diferir do cartão na visão por entrada</span>':''}</p>`+
+  `<h3 style="margin-top:14px">Últimos 12 meses</h3>${leg([['Qualificados','var(--blue)'],['Meta','var(--ink)',1]])}<div class="fig s" id="f-meta"></div>`}
+function metaChart(b){const sel=SEL();const end=som(b-1);const ms=[];for(let i=11;i>=0;i--)ms.push(addM(end,-i));
+ const q=ms.map(t=>{const e=Math.min(addM(t,1),NOW);return sel.filter(d=>d.qa!=null&&d.qa>=t&&d.qa<e).length});
+ const mt=ms.map(t=>metaPer(t,addM(t,1),'q'));
+ return {labels:ms.map(t=>MESC[new Date(t).getUTCMonth()]),tipL:ms.map(t=>MES[new Date(t).getUTCMonth()]+' '+new Date(t).getUTCFullYear()),series:[{n:'Qualificados',c:'var(--blue)',t:'bar',v:q}],marks:mt,tops:q.map((v,i)=>mt[i]?nf.format(Math.round(v/mt[i]*100))+'%':null),aria:'Meta de qualificados por mês'}}
+
+VIEWS['funil']=()=>{const [a,b]=range();const vf=visFun();if(!vf.length){main.innerHTML=head('Nenhum funil na seleção');return}
+ if(!S.ff||!vf.some(f=>f.id===S.ff))S.ff=vf[0].id;const F=FI[S.ff];const sel=SEL();
+ const touched=sel.filter(d=>d.fs.includes(F.id)&&entryIn(d,F.id)>=a&&entryIn(d,F.id)<b);
+ const coh=touched.filter(d=>d.hh),noh=touched.length-coh.length;const ps=passage(F.id,coh);
+ const open=sel.filter(d=>d.st==='open'&&d.cf===F.id&&(!S.distP||(d.c>=a&&d.c<b)));const dist=F.st.map((s,i)=>open.filter(d=>d.cs===i).length);
+ const first=ps[0].ch;const won=ps.reduce((x,p)=>x+p.ga,0);const worst=ps.map((p,i)=>({i,r:ratio(p.pe,p.ch)})).filter(x=>x.r!=null&&x.r>0).sort((x,y)=>y.r-x.r)[0];
+ main.innerHTML=head(worst?`${esc(F.n)}: ${esc(F.st[worst.i])} é a etapa que mais perde (${PC(worst.r)})`:esc(F.n),`${N(first)} negócios entraram no funil no período com histórico comprovado. ${N(won)} já foram ganhos${ps.reduce((x,p)=>x+p.tr,0)?' e '+N(ps.reduce((x,p)=>x+p.tr,0))+' transferidos para outro funil':''}.`)+
+ `<div class="chips" role="tablist">${vf.map(f=>`<button class="chip ${f.id===S.ff?'on':''}" data-ff="${f.id}">${esc(f.n)}</button>`).join('')}</div>`+
+ (noh?`<p class="note">${N(noh)} negócios deste período foram criados antes de ${fDT(HIST)}, quando o registro de etapas começou. Eles ficam fora da passagem, porque a API do RD não informa por quais etapas passaram. A passagem se completa conforme o histórico é registrado a cada hora.</p>`:'')+
+ `<div class="grid g2"><div class="box flat" id="fu-pass"><h2>Passagem pelas etapas</h2><p class="mut sm">Negócios que entraram no funil no período e chegaram a cada etapa, segundo o histórico. Um negócio pode pular etapas.</p>
+  ${leg([['Avançou','var(--blue)'],['Em andamento','var(--grey)'],['Perdido na etapa','var(--red)'],['Ganho','var(--green)']])}<div class="stg" style="margin-top:12px">${ps.map((p,i)=>{const t=Math.max(1,p.ch);const av=p.av-p.ga;
+   const seg=(v,c,l)=>v?`<span style="width:${v/t*100}%;background:${c}" data-tip="${esc('<b>'+esc(F.st[i])+'</b>'+l+': '+N(v)+' ('+PC(v/t)+')')}">${v/t>.09?N(v):''}</span>`:'';
+   return `<div class="st"><div class="nm">${esc(F.st[i])}<small>${N(p.ch)} chegaram</small></div><div class="sbar">${seg(av,'var(--blue)',p.tr?'Avançou ou foi transferido':'Avançou')}${seg(p.an,'var(--grey)','Em andamento')}${seg(p.pe,'var(--red)','Perdido')}${seg(p.ga,'var(--green)','Ganho')}</div>
+   <div class="meta"><span>Avanço <b>${PC(ratio(p.av,p.ch))}</b></span><span>Perda <b>${PC(ratio(p.pe,p.ch))}</b></span><span>Em andamento <b>${N(p.an)}</b></span><span>Mediana de permanência <b>${p.med==null?'sem histórico suficiente':nf1.format(p.med)+' dias'}</b></span>${p.tr?`<span>Transferidos <b>${N(p.tr)}</b></span>`:''}</div></div>`}).join('')}</div></div>
+  <div class="box flat" id="fu-dist"><div class="bh"><div><h2>Distribuição atual</h2><p class="mut sm">Fotografia da última atualização (${fDT(NOW)}). ${S.distP?'Apenas negócios criados no período.':'Todos os negócios abertos, independentemente do período.'}</p></div>
+  <label class="sm" style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="distP" ${S.distP?'checked':''}> Só criados no período</label></div>
+  ${bars(F.st.map((s,i)=>({l:s,v:dist[i],c:'var(--grey)',tip:'<br>'+N(dist[i])+' negócios abertos'})),N)}<p class="sm mut" style="margin-top:10px">${N(open.length)} negócios abertos neste funil. Consultar como estava em uma data passada depende das fotografias diárias, registradas a partir da implantação.</p></div></div>`};
+function entryIn(d,f){for(const e of d.h)if(e.f===f)return e.t;return -1}
+function passage(F,deals){const fu=FI[F];const r=fu.st.map(()=>({ch:0,av:0,an:0,pe:0,ga:0,tr:0,dw:[]}));
+ for(const d of deals){const h=d.h;for(let j=0;j<h.length;j++){const e=h[j];if(e.f!==F)continue;const x=r[e.s];x.ch++;const nx=h[j+1];
+  if(nx){x.av++;if(nx.f!==F)x.tr++;x.dw.push(nx.t-e.t)}else if(d.st==='open')x.an++;else if(d.st==='lost'){x.pe++;x.dw.push(d.ca-e.t)}else{x.ga++;x.av++;x.dw.push(d.ca-e.t)}}}
+ return r.map(x=>({...x,med:x.dw.length>=5?median(x.dw)/DAY:null}))}
+
+VIEWS['qualificacao']=()=>{const [a,b]=range();const k=K(a,b);const sel=SEL();const vf=visFun();const ent=k.ent;
+ const grp=(key,lab)=>{const m=new Map;for(const d of ent){const g=key(d);if(!m.has(g))m.set(g,{l:lab(g),n:0,q:0});const x=m.get(g);x.n++;if(d.qa!=null)x.q++}return [...m.values()].filter(x=>x.n>=5).sort((x,y)=>y.q-x.q)};
+ const byO=grp(d=>d.o,x=>x),byC=grp(d=>d.cp||'__none',x=>x==='__none'?'Sem atribuição':CI[x].n);
+ const qrow=list=>bars(list.map(x=>({l:x.l,v:x.q/x.n,c:'var(--blue)',tip:'<br>'+N(x.q)+' qualificados de '+N(x.n)+' negócios'})),PC);
+ const end=som(b-1),ms=[];for(let i=11;i>=0;i--)ms.push(addM(end,-i));
+ const tr=ms.map(t=>{const e=addM(t,1);const c=sel.filter(d=>d.c>=t&&d.c<e);return ratio(c.filter(d=>d.qa!=null).length,c.length)});
+ const cmpF=vf.map(f=>{const c=ent.filter(d=>d.fs.includes(f.id));const q=c.filter(d=>d.qa!=null);const qe=sel.filter(d=>d.qa!=null&&d.qa>=a&&d.qa<b&&d.qf===f.id).length;
+  const ql=cfg.qual[f.id];return {f,n:c.length,q:q.length,qe,mk:ql>=0?f.st[ql]+' ou posterior':'sem marco neste funil'}});
+ main.innerHTML=head(`Taxa de qualificação de ${PC(k.tq!=null?k.tq:ratio(k.ent.filter(d=>d.qa!=null).length,k.leads))} em ${esc(plabel(a,b))}`,`Regra por funil definida em Configurações. Cada negócio conta uma única vez como qualificado, mesmo que volte de etapa.`)+
+ (k.qinf?`<p class="note">${N(k.qinf)} qualificações deste recorte são de negócios anteriores a ${fD(HIST)}: foram inferidas pela etapa atual, com a data de criação como referência.</p>`:'')+
+ `<div class="grid g2"><div class="box flat"><h2>Meta de qualificados × resultado</h2><p class="mut sm">Mensal, pela data da qualificação. O percentual sobre a barra é o atingimento.</p>${leg([['Qualificados','var(--blue)'],['Meta','var(--ink)',1]])}<div class="fig" id="q-meta"></div></div>
+ <div class="box flat"><h2>Taxa de qualificação por mês de entrada</h2><p class="mut sm">Negócios criados em cada mês que qualificaram até a última atualização. Meses recentes ainda estão amadurecendo.</p>${leg([['Taxa de qualificação','var(--blue)',1]])}<div class="fig" id="q-tx"></div></div>
+ <div class="box flat"><h2>Por origem</h2><p class="mut sm">Qualificados ÷ negócios criados no período, mesma origem.</p>${qrow(byO)}</div>
+ <div class="box flat"><h2>Por campanha</h2><p class="mut sm">Campanhas com ao menos 5 negócios no período.</p>${qrow(byC)}</div></div>
+ <div class="box" style="margin-top:14px"><h2>Comparativo entre funis</h2><p class="mut sm">Volume e taxa conforme o marco de qualificação de cada operação.</p><div class="scroll"><table class="stack"><thead><tr><th>Funil</th><th>Marco de qualificação</th><th class="n">Negócios criados</th><th class="n">Qualificados (entrada)</th><th class="n">Taxa</th><th class="n">Qualificações no período</th></tr></thead><tbody>${cmpF.map(x=>`<tr><td><b>${esc(x.f.n)}</b><br><span class="mut sm">${esc(MARCAS[x.f.m])}</span></td><td>${esc(x.mk)}</td><td class="n">${N(x.n)}</td><td class="n">${N(x.q)}</td><td class="n">${PC(ratio(x.q,x.n))}</td><td class="n">${N(x.qe)}</td></tr>`).join('')}</tbody></table></div>
+ <p class="sm mut">Negócios transferidos entre funis mantêm o mesmo identificador e aparecem nos funis por onde passaram.</p></div>`;
+ xy('q-meta',metaChart(b));xy('q-tx',{labels:ms.map(t=>MESC[new Date(t).getUTCMonth()]),tipL:ms.map(t=>MES[new Date(t).getUTCMonth()]+' '+new Date(t).getUTCFullYear()),series:[{n:'Taxa de qualificação',c:'var(--blue)',v:tr,ft:PC}],fl:v=>Math.round(v*100)+'%',aria:'Taxa de qualificação por mês'})};
+
+VIEWS['perdas']=()=>{const [a,b]=range();const sel=SEL();const ev=S.mode==='eventos';const vf=visFun();const vids=new Set(vf.map(f=>f.id));
+ const coh=sel.filter(d=>d.c>=a&&d.c<b);const pop=ev?sel.filter(d=>d.st==='lost'&&d.ca>=a&&d.ca<b):coh.filter(d=>d.st==='lost');const tot=pop.length;
+ const stages=vf.flatMap(f=>f.st.map((s,i)=>({f:f.id,i,l:(vf.length>1?f.n+' › ':'')+s})));
+ const hc=coh.filter(d=>d.hh);const reach={};for(const d of hc)for(const e of d.h){const kk=e.f+'|'+e.s;reach[kk]=(reach[kk]||0)+1}
+ const lostHist={};for(const d of hc)if(d.st==='lost'){const kk=d.lf+'|'+d.ls;lostHist[kk]=(lostHist[kk]||0)+1}
+ const byS=stages.map(s=>{const kk=s.f+'|'+s.i;const n=pop.filter(d=>d.lf===s.f&&d.ls===s.i).length;return {...s,n,sh:ratio(n,tot),idx:ev?null:ratio(lostHist[kk]||0,reach[kk]||0),rc:reach[kk]||0}}).filter(s=>vids.has(s.f));
+ const mot=d=>d.mo||'Motivo não informado';const mt={};for(const d of pop)mt[mot(d)]=(mt[mot(d)]||0)+1;const motL=Object.entries(mt).sort((x,y)=>y[1]-x[1]).map(x=>x[0]);
+ const top=motL[0];const worst=[...byS].filter(s=>s.idx!=null&&s.rc>=10).sort((x,y)=>y.idx-x.idx)[0];
+ const heat=byS.filter(s=>s.n).map(s=>{const r=pop.filter(d=>d.lf===s.f&&d.ls===s.i);const c={};for(const d of r)c[mot(d)]=(c[mot(d)]||0)+1;return {s,c,n:r.length}});
+ const end=som(b-1),ms=[];for(let i=11;i>=0;i--)ms.push(addM(end,-i));const top5=motL.slice(0,5);const PAL=['#d34848','#e88a3a','#1694D2','#7a5fc7','#2a9d8f','var(--grey)'];
+ const evo=[...top5,'Outros motivos'].map((m,j)=>({n:m,c:PAL[j],t:'bar',v:ms.map(t=>{const e=addM(t,1);return sel.filter(d=>d.st==='lost'&&d.ca>=t&&d.ca<e&&(j<top5.length?mot(d)===m:!top5.includes(mot(d)))).length})}));
+ const gtab=(key,lab)=>{const m=new Map;for(const d of (ev?pop:coh)){const g=key(d);if(!m.has(g))m.set(g,{l:lab(g),n:0,p:0,c:{}});const x=m.get(g);x.n++;if(d.st==='lost'&&(!ev||true)){x.p++;x.c[mot(d)]=(x.c[mot(d)]||0)+1}}return [...m.values()].filter(x=>x.p).sort((x,y)=>y.p-x.p)};
+ const cols=['Contato incorreto','Sem resposta','Sem interesse','Preço'];
+ const tbl=(rows,h)=>`<div class="scroll"><table class="stack"><thead><tr><th>${h}</th>${ev?'':'<th class="n">Negócios</th>'}<th class="n">Perdas</th>${ev?'':'<th class="n">% de perda</th>'}${cols.map(c=>`<th class="n">${c}</th>`).join('')}<th class="n">Demais</th></tr></thead><tbody>${rows.map(x=>{const o=x.p-cols.reduce((s,c)=>s+(x.c[c]||0),0);return `<tr><td>${esc(x.l)}</td>${ev?'':`<td class="n">${N(x.n)}</td>`}<td class="n">${N(x.p)}</td>${ev?'':`<td class="n">${PC(x.p/x.n)}</td>`}${cols.map(c=>`<td class="n">${PC(ratio(x.c[c]||0,x.p))}</td>`).join('')}<td class="n">${PC(ratio(o,x.p))}</td></tr>`}).join('')}</tbody></table></div>`;
+ main.innerHTML=head(top?`${N(tot)} perdas em ${esc(plabel(a,b))}; ${esc(top)} lidera com ${PC(mt[top]/tot)}`:'Sem perdas no recorte',(worst?`Maior índice de perda: ${esc(worst.l)}, ${PC(worst.idx)} dos negócios que chegaram à etapa. `:'')+(ev?'Perdas registradas no período, independentemente da data de entrada.':'Perdas entre os negócios criados no período.'))+
+ `<div class="grid g2"><div class="box flat"><h2>Perdas por etapa</h2><p class="mut sm">Quantidade, participação no total e índice de perda. O índice divide os perdidos na etapa pelos que chegaram a ela, no mesmo grupo de negócios com histórico.</p><div class="scroll"><table class="stack"><thead><tr><th>Etapa</th><th class="n">Perdas</th><th class="n">% do total</th><th class="n">Chegaram</th><th class="n">Índice de perda</th></tr></thead><tbody>${byS.map(s=>`<tr><td>${esc(s.l)}</td><td class="n">${N(s.n)}</td><td class="n">${PC(s.sh)}</td><td class="n">${ev?'—':N(s.rc)}</td><td class="n">${ev?'só por entrada':PC(s.idx)}</td></tr>`).join('')}</tbody></table></div></div>
+ <div class="box flat"><h2>Evolução mensal das perdas</h2><p class="mut sm">Pela data da perda, últimos 12 meses, cinco motivos principais.</p>${leg(evo.map(s=>[s.n,s.c]))}<div class="fig" id="p-evo"></div></div></div>
+ <div class="box" style="margin-top:14px"><h2>Motivos por etapa</h2><p class="mut sm">Quantidade em cada célula; a cor indica o peso do motivo dentro da etapa. Motivos vazios aparecem como "Motivo não informado" e grafias com acentuação corrompida foram unificadas.</p><div class="scroll"><table class="heat"><thead><tr><th>Etapa</th>${motL.map(m=>`<th class="n">${esc(m)}</th>`).join('')}<th class="n">Total</th></tr></thead><tbody>${heat.map(h=>`<tr><td>${esc(h.s.l)}</td>${motL.map(m=>{const v=h.c[m]||0;const r=v/h.n;return `<td class="n" style="background:color-mix(in srgb,var(--red) ${Math.round(r*85)}%,transparent);${r>.45?'color:#fff;font-weight:800':''}" data-tip="${esc('<b>'+esc(h.s.l)+'</b>'+esc(m)+': '+N(v)+' ('+PC(r)+' da etapa)')}">${v?N(v):''}</td>`}).join('')}<td class="n"><b>${N(h.n)}</b></td></tr>`).join('')}</tbody></table></div></div>
+ <div class="box"><h2>Perdas por origem</h2><p class="mut sm">Distribuição dos motivos entre as perdas de cada origem.</p>${tbl(gtab(d=>d.o,x=>x),'Origem')}</div>
+ <div class="box"><h2>Perdas por campanha</h2>${tbl(gtab(d=>d.cp||'__none',x=>x==='__none'?'Sem atribuição':CI[x].n),'Campanha')}</div>
+ <div class="box"><h2>Perdas por responsável</h2>${tbl(gtab(d=>d.ow,x=>x),'Responsável')}</div>`;
+ xy('p-evo',{labels:ms.map(t=>MESC[new Date(t).getUTCMonth()]),tipL:ms.map(t=>MES[new Date(t).getUTCMonth()]+' '+new Date(t).getUTCFullYear()),series:evo,stack:true,aria:'Perdas por mês e motivo'})};
+
+VIEWS['midia']=()=>{const [a,b]=range();const k=K(a,b);const ev=S.mode==='eventos';const sel=SEL();
+ const paid=o=>/meta|facebook|instagram|google|ads|tiktok|linkedin|youtube|pago|patrocin/i.test(o);
+ const grpBy=(key,lab)=>{const m=new Map;const add=(arr,f)=>{for(const d of arr){const g=key(d);if(!m.has(g))m.set(g,{g,l:lab(g),n:0,q:0,w:0,p:0,ci:0});m.get(g)[f]++}};add(k.ent,'n');add(k.q,'q');add(k.w,'w');add(k.l,'p');
+  for(const d of k.l){if(d.mo==='Contato incorreto'||d.mo==='Sem resposta'){const x=m.get(key(d));if(x)x.ci++}}return [...m.values()].sort((x,y)=>y.n-x.n||y.q-x.q)};
+ const byO=grpBy(d=>d.o,x=>x);
+ const tr=(x,cls,label)=>`<tr class="${cls||''}"><td>${label}</td><td class="n">${N(x.n)}</td><td class="n">${N(x.q)}</td><td class="n">${N(x.w)}</td><td class="n">${N(x.p)}</td><td class="n">${ev?'—':PC(ratio(x.q,x.n))}</td><td class="n">${ev?'—':PC(ratio(x.w,x.n))}</td><td class="n">${PC(ratio(x.ci,x.p))}</td><td class="n mut">Indisponível</td></tr>`;
+ let body='';for(const o of byO){const sub=grpBy(d=>d.o===o.g?(d.cp||'__none'):'__skip',x=>x==='__none'?'Sem campanha':x==='__skip'?'':CI[x].n).filter(x=>x.g!=='__skip');body+=tr(o,'sub',esc(o.l)+(paid(o.l)?' <span class="mut sm">mídia paga</span>':''));if(sub.length>1||(sub[0]&&sub[0].g!=='__none'))body+=sub.map(x=>tr(x,'',esc(x.l))).join('')}
+ const T={n:k.ent.length,q:k.q.length,w:k.w.length,p:k.l.length,ci:k.l.filter(d=>d.mo==='Contato incorreto'||d.mo==='Sem resposta').length};
+ const pd=k.ent.filter(d=>paid(d.o));const bk=buckets(a,b);
+ const ts=bk.out.map(x=>{const e=sel.filter(d=>d.c>=x.a&&d.c<x.b);return [e.filter(d=>paid(d.o)).length,e.filter(d=>!paid(d.o)).length]});
+ main.innerHTML=head(`${N(pd.length)} dos ${N(k.leads)} negócios de ${esc(plabel(a,b))} vieram de mídia paga`,`Resultados do CRM por origem e campanha, como estão cadastrados no RD. O investimento entra quando a integração de mídia (Reportei ou contas de anúncio) estiver ativa; até lá, CPL e custos aparecem como indisponíveis, sem estimativa.`)+
+ `<div class="box"><h2>Origem e campanha × resultado comercial</h2><p class="mut sm">${ev?'Qualificados, vendas e perdas ocorridos no período.':'Qualificados, vendas e perdas dos negócios criados no período.'}</p>
+ <div class="scroll"><table><thead><tr><th>Origem · campanha</th><th class="n">Leads no CRM</th><th class="n">Qualificados</th><th class="n">Vendas</th><th class="n">Perdas</th><th class="n">Taxa de qualificação</th><th class="n">Conversão em vendas</th><th class="n">Perdas por contato incorreto ou sem resposta</th><th class="n">Investimento</th></tr></thead>
+ <tbody>${body||'<tr><td colspan="9" class="mut">Sem negócios no recorte.</td></tr>'}${tr(T,'tot','Total')}</tbody></table></div></div>
+ <div class="grid g2"><div class="box flat"><h2>Entrada por tipo de origem</h2>${leg([['Mídia paga','var(--blue)'],['Demais origens','var(--grey)']])}<div class="fig" id="m-ts"></div></div>
+ <div class="box flat"><h2>Qualidade do vínculo</h2><p class="mut sm">Quanto maior, mais confiável o cruzamento com a mídia quando ela for integrada.</p>${bars([{l:'Negócios com origem preenchida',v:ratio(k.ent.filter(d=>d.o!=='Não informada').length,k.leads)},{l:'Negócios com campanha preenchida',v:ratio(k.ent.filter(d=>d.cp).length,k.leads)},{l:'Mídia paga com campanha preenchida',v:ratio(pd.filter(d=>d.cp).length,pd.length)},{l:'Negócios com UTM de campanha',v:ratio(k.ent.filter(d=>d.utm).length,k.leads)}],PC)}
+ <p class="sm mut" style="margin-top:10px">Origens tratadas como mídia paga: nomes com Meta, Facebook, Instagram, Google, Ads, TikTok, LinkedIn ou YouTube.</p></div></div>`;
+ xy('m-ts',{labels:bk.out.map(x=>x.l),series:[{n:'Mídia paga',c:'var(--blue)',t:'bar',v:ts.map(x=>x[0])},{n:'Demais origens',c:'var(--grey)',t:'bar',v:ts.map(x=>x[1])}],stack:true,aria:'Entrada por tipo de origem'})};
+
+VIEWS['entre-funis']=()=>{const [a,b]=range();const sel=SEL();const vf=visFun();const coh=sel.filter(d=>d.c>=a&&d.c<b);
+ const fstat=vf.map(f=>{const c=sel.filter(d=>{const t=entryIn(d,f.id);return t>=a&&t<b});const q=c.filter(d=>d.qa!=null),w=c.filter(d=>d.st==='won'&&d.cf===f.id),l=c.filter(d=>d.st==='lost'&&d.lf===f.id);
+  const tq=median(q.filter(d=>d.hh).map(d=>(d.qa-d.c)/DAY));const tw=median(w.filter(d=>d.qa!=null&&d.hh).map(d=>(d.ca-d.qa)/DAY));return {f,c,n:c.length,u:uniq(c),q:q.length,w:w.length,l:l.length,tq,tw}});
+ const pairs={};for(const d of sel)for(let i=1;i<d.h.length;i++)if(d.h[i].tr){const k2=d.h[i-1].f+'>'+d.h[i].f;pairs[k2]=(pairs[k2]||0)+1}
+ const pk=Object.keys(pairs).sort((x,y)=>pairs[y]-pairs[x]);if(!S.tp||!pairs[S.tp])S.tp=pk[0]||null;
+ let J=null;if(S.tp){const [A,B]=S.tp.split('>');const ent=sel.filter(d=>{const t=entryIn(d,A);return t>=a&&t<b});const tr=ent.filter(d=>d.h.some((e,i)=>i&&e.tr&&e.f===B&&d.h[i-1].f===A));
+  J={A,B,n:ent.length,lp:ent.filter(d=>d.st==='lost'&&d.cf===A).length,op:ent.filter(d=>d.st==='open'&&d.cf===A).length,t:tr.length,w:tr.filter(d=>d.st==='won').length,lv:tr.filter(d=>d.st==='lost').length,ov:tr.filter(d=>d.st==='open').length,
+   mt:median(tr.map(d=>{const e=d.h.find(x=>x.tr&&x.f===B);return e?(e.t-entryIn(d,A))/DAY:null}).filter(x=>x!=null)),mw:median(tr.filter(d=>d.st==='won').map(d=>{const e=d.h.find(x=>x.tr&&x.f===B);return (d.ca-e.t)/DAY}))}}
+ const cids=new Set(coh.map(d=>d.cid));let multiF=0,multiO=0;const combos={};for(const cid of cids){const ds=CONT_DEALS.get(cid);if(ds.length<2)continue;const fs=new Set(ds.map(d=>d.ef));const ms=new Set(ds.map(d=>d.m));if(fs.size>1)multiF++;if(ms.size>1)multiO++;
+  const nm=[...new Set(ds.map(d=>FI[d.ef].n))].sort();const key=nm.length>1?nm.join(' + '):nm[0]+' (mais de um negócio)';combos[key]=(combos[key]||0)+1}
+ const brands=Object.keys(MARCAS).filter(m=>FUN.some(f=>f.m===m)&&(!S.f.marca.size||S.f.marca.has(m))).map(m=>{const c=coh.filter(d=>d.m===m);return {m,n:c.length,u:uniq(c)}});
+ const maxJ=Math.max(1,J?J.n:1);const fl=(l,v,c,ind)=>`<div class="fl"><span style="padding-left:${ind||0}px">${l}</span><div class="track"><span style="width:${v/maxJ*100}%;background:${c}"></span></div><span class="n">${N(v)}</span></div>`;
+ const gk=Object.keys(GRUPOS).filter(g=>g!=='propria');
+ const eqm=gk.map(g=>({g,cells:vf.map(f=>{const idx=f.st.map((s,i)=>i).filter(i=>(cfg.eq[f.id]||[])[i]===g);if(!idx.length)return null;const st=fstat.find(x=>x.f.id===f.id);const hd=st.c.filter(d=>d.hh);if(!hd.length)return {v:null};const r=hd.filter(d=>d.h.some(e=>e.f===f.id&&idx.includes(e.s))).length;return {v:r/hd.length,st:idx.map(i=>f.st[i]).join(', ')}})}));
+ main.innerHTML=head(`${N(cids.size)} pessoas geraram ${N(coh.length)} negócios em ${esc(plabel(a,b))}`,`Negócios transferidos mantêm o identificador; novos negócios do mesmo contato ficam ligados à pessoa sem se confundir com a oportunidade anterior.`)+
+ `<div class="box"><h2>Funis lado a lado</h2><p class="mut sm">Negócios que entraram em cada funil no período. Um negócio transferido aparece nos dois funis por onde passou.</p><div class="scroll"><table><thead><tr><th>Indicador</th>${fstat.map(x=>`<th class="n">${esc(x.f.n)}</th>`).join('')}</tr></thead><tbody>
+ ${[['Negócios que entraram',x=>N(x.n)],['Contatos únicos',x=>N(x.u)],['Qualificados',x=>N(x.q)],['Taxa de qualificação',x=>PC(ratio(x.q,x.n))],['Vendas no funil',x=>N(x.w)],['Conversão em vendas',x=>PC(ratio(x.w,x.n))],['Perdas no funil',x=>N(x.l)],['Mediana entrada → qualificação',x=>x.tq==null?'—':nf1.format(x.tq)+' dias'],['Mediana qualificação → venda',x=>x.tw==null?'—':nf1.format(x.tw)+' dias'],['Marco de qualificação',x=>cfg.qual[x.f.id]>=0?esc(x.f.st[cfg.qual[x.f.id]]):'sem marco']].map(([l,f])=>`<tr><td>${l}</td>${fstat.map(x=>`<td class="n">${f(x)}</td>`).join('')}</tr>`).join('')}</tbody></table></div></div>
+ <div class="grid g2"><div class="box flat"><h2>Jornada entre funis</h2><p class="mut sm">Transferências registradas no histórico desde ${fD(HIST)}. Negócios que entraram no funil de origem no período.</p>
+ ${pk.length?`<div class="chips">${pk.slice(0,6).map(k2=>{const [A,B]=k2.split('>');return `<button class="chip ${k2===S.tp?'on':''}" data-tp="${esc(k2)}">${esc(FI[A].n)} → ${esc(FI[B].n)}</button>`}).join('')}</div>`:''}
+ ${J&&J.n?`<div class="flow">${fl('<b>Entraram em '+esc(FI[J.A].n)+'</b>',J.n,'var(--blue)')}${fl('Perdidos na origem',J.lp,'var(--red)',14)}${fl('Em andamento na origem',J.op,'var(--grey)',14)}${fl('<b>Transferidos para '+esc(FI[J.B].n)+'</b>',J.t,'var(--blue)',14)}${fl('Ganhos',J.w,'var(--green)',28)}${fl('Perdidos no destino',J.lv,'var(--red)',28)}${fl('Em andamento no destino',J.ov,'var(--grey)',28)}</div>
+ <p class="sm" style="margin-top:12px">Mediana até a transferência: <b>${J.mt==null?'—':nf1.format(J.mt)+' dias'}</b> · da transferência à venda: <b>${J.mw==null?'—':nf1.format(J.mw)+' dias'}</b></p>`:`<p class="mut">${pk.length?'Nenhum negócio desta jornada entrou no período.':'Nenhuma transferência entre funis registrada ainda. O registro começou em '+fD(HIST)+' e cresce a cada sincronização.'}</p>`}</div>
+ <div class="box flat"><h2>Pessoas e oportunidades</h2><p class="mut sm">Contatos únicos eliminam a dupla contagem de pessoas; negócios mantêm cada oportunidade.</p>
+ <table><thead><tr><th>Marca</th><th class="n">Negócios</th><th class="n">Contatos únicos</th></tr></thead><tbody>${brands.map(x=>`<tr><td>${esc(MARCAS[x.m])}</td><td class="n">${N(x.n)}</td><td class="n">${N(x.u)}</td></tr>`).join('')}<tr class="tot"><td>Consolidado</td><td class="n">${N(coh.length)}</td><td class="n">${N(cids.size)}</td></tr></tbody></table>
+ <p class="sm" style="margin-top:10px"><b>${N(multiF)}</b> contatos do período têm negócios em mais de um funil e <b>${N(multiO)}</b> em mais de uma operação.</p>
+ <h3 style="margin-top:14px">Combinações mais frequentes</h3>${bars(Object.entries(combos).sort((x,y)=>y[1]-x[1]).slice(0,5).map(([l,v])=>({l,v})),N)}</div></div>
+ <div class="box"><h2>Etapas equivalentes</h2><p class="mut sm">Percentual dos negócios de cada funil, com histórico, que chegaram ao grupo de etapas. Equivalências editáveis em Configurações.</p><div class="scroll"><table><thead><tr><th>Grupo</th>${vf.map(f=>`<th class="n">${esc(f.n)}</th>`).join('')}</tr></thead><tbody>${eqm.map(r=>`<tr><td>${GRUPOS[r.g]}</td>${r.cells.map(c=>`<td class="n">${c==null?'<span class="mut">sem etapa</span>':c.v==null?'—':`<span data-tip="${esc(esc(c.st))}">${PC(c.v)}</span>`}</td>`).join('')}</tr>`).join('')}</tbody></table></div></div>`};
+
+VIEWS['detalhamento']=()=>{const [a,b]=range();const k=K(a,b);const L2={leads:['Leads entrantes',k.ent],cont:['Leads entrantes',k.ent],qual:['Leads qualificados',k.q],tq:['Leads qualificados',k.q],and:['Em andamento',k.o],vend:['Vendas',k.w],tv:['Vendas',k.w],perd:['Perdas',k.l],inv:['Leads com campanha',k.lm],cpl:['Leads com campanha',k.lm],cpq:['Qualificados com campanha',k.qm],cmv:['Vendas com campanha',k.wm]};
+ const [lab,base]=L2[S.drill]||L2.leads;const q=S.dq.trim().toLowerCase();
+ let rows=q?base.filter(d=>(d.id+' '+(d.cp?CI[d.cp].n:'')+' '+d.ow+' '+d.o+' '+FI[d.cf].n).toLowerCase().includes(q)):base.slice();
+ const sk=S.dsort.k,dir=S.dsort.d;const val=d=>({c:d.c,qa:d.qa||0,ca:d.ca||0,id:d.id,st:d.st,f:FI[d.cf].n,ow:d.ow})[sk];rows.sort((x,y)=>{const u=val(x),v=val(y);return (u>v?1:u<v?-1:0)*dir});
+ const PS=50,pages=Math.max(1,Math.ceil(rows.length/PS));if(S.dpage>=pages)S.dpage=pages-1;const pg=rows.slice(S.dpage*PS,S.dpage*PS+PS);
+ const th=(key,t,n)=>`<th class="sort ${n?'n':''}" data-sort="${key}">${t}${sk===key?(dir>0?' ↑':' ↓'):''}</th>`;
+ main.innerHTML=head(`${N(rows.length)} negócios · ${esc(lab)}`,`${esc(plabel(a,b))}, ${S.mode==='entrada'?'por entrada':'por eventos'}, com todos os filtros aplicados.`)+
+ `<div class="chips">${[['leads','Entrantes'],['qual','Qualificados'],['and','Em andamento'],['vend','Vendas'],['perd','Perdas'],['cpl','Com campanha']].map(([id,t])=>`<button class="chip ${(L2[S.drill]||L2.leads)[0]===L2[id][0]?'on':''}" data-drill2="${id}">${t}</button>`).join('')}</div>
+ <div class="box"><div class="bh"><input class="search" id="dq" type="search" placeholder="Buscar por ID, campanha, origem ou responsável" value="${esc(S.dq)}" aria-label="Buscar"><button class="btn pr" id="csv">Copiar CSV (${N(rows.length)})</button></div>
+ <div class="scroll"><table class="stack"><thead><tr>${th('id','Negócio')}${th('f','Funil · etapa atual')}${th('st','Status')}${th('c','Criado',1)}${th('qa','Qualificado',1)}${th('ca','Fechado',1)}<th>Origem · campanha</th>${th('ow','Responsável')}<th>Motivo de perda</th><th>Praça</th></tr></thead>
+ <tbody>${pg.map(d=>`<tr class="click" data-open="${esc(d.id)}"><td><a href="https://crm.rdstation.com/app/deals/${encodeURIComponent(d.id)}" target="_blank" rel="noopener" title="Abrir no RD Station CRM">${esc(d.id.slice(-8))} ↗</a>${CONT_DEALS.get(d.cid).length>1?`<br><span class="mut sm">contato com ${CONT_DEALS.get(d.cid).length} negócios</span>`:''}</td><td>${esc(FI[d.cf].n)} · ${esc(FI[d.cf].st[d.cs]||'')}</td><td><span class="tag t-${d.st}">${STL[d.st]}${d.hold?' (pausado)':''}</span></td><td class="n">${fD(d.c)}</td><td class="n">${d.qa?fD(d.qa)+(d.qi?'*':''):'—'}</td><td class="n">${d.ca?fD(d.ca):'—'}</td><td>${esc(d.o)}${d.cp?'<br><span class="mut sm">'+esc(CI[d.cp].n)+'</span>':''}</td><td>${esc(d.ow)}</td><td>${d.st==='lost'?esc(d.mo||'Motivo não informado'):''}</td><td>${esc(d.pr)}</td></tr>${S.open===d.id?`<tr><td colspan="10">${histHtml(d)}</td></tr>`:''}`).join('')||'<tr><td colspan="10" class="mut">Nenhum negócio no recorte.</td></tr>'}</tbody></table></div>
+ <div class="pager"><span class="sm mut">Página ${S.dpage+1} de ${pages}</span><button class="btn" id="pp" ${S.dpage?'':'disabled'}>Anterior</button><button class="btn" id="pn" ${S.dpage<pages-1?'':'disabled'}>Próxima</button></div>
+ <p class="sm mut">Clique na linha para ver a jornada; no ID para abrir o negócio no RD (exige login no RD). * Qualificação inferida pela etapa, sem data comprovada no histórico. <span id="csvmsg" aria-live="polite"></span></p></div>`;
+ VIEWS._rows=rows};
+function histHtml(d){const hs=d.hh?`<ul class="tl">${d.h.map(e=>`<li>${fDT(e.t)} · ${esc(FI[e.f].n)} › ${esc(FI[e.f].st[e.s]||'')}${e.tr?' <b>(transferido, mesmo ID)</b>':''}</li>`).join('')}${d.ca?`<li>${fDT(d.ca)} · <b>${d.st==='won'?'Ganho':'Perdido'}</b>${d.st==='lost'?' · '+esc(d.mo||'Motivo não informado')+(d.mr&&cleanMot(d.mr)!==d.mr?' <span class="mut">(original: '+esc(d.mr)+')</span>':''):''}</li>`:''}</ul>`:`<p class="sm mut">Histórico de etapas indisponível: negócio criado antes de ${fD(HIST)}, quando o registro começou${d.h.length>1?'. Movimentações vistas desde então: '+d.h.slice(1).map(e=>esc(FI[e.f].st[e.s]||'')).join(' → '):''}. Etapa atual: ${esc(FI[d.cf].st[d.cs]||'')}.</p>`;
+ const other=CONT_DEALS.get(d.cid).filter(x=>x!==d);return `<div class="grid g2"><div><h3>Jornada do negócio</h3>${hs}</div><div><h3>Outros negócios do mesmo contato</h3>${other.length?`<ul class="tl">${other.map(x=>`<li>${esc(x.id.slice(-8))} · ${esc(FI[x.cf].n)} · ${STL[x.st]} · criado ${fD(x.c)}</li>`).join('')}</ul>`:'<p class="sm mut">Nenhum outro negócio.</p>'}</div></div>`}
+
+VIEWS['configuracoes']=()=>{const mk=S.cfgM;const months=[];for(let t=addM(som(NOW),-12);t<=addM(som(NOW),12);t=addM(t,1))months.push(ym(t));
+ main.innerHTML=head('Configurações','As mudanças valem na hora neste navegador. Para valer para todo o time, copie a configuração e cole no arquivo config.json do repositório.')+
+ `<p><button class="btn pr" id="cfgcopy">Copiar configuração (config.json)</button> <button class="btn" id="reset">Voltar ao config.json publicado</button> <span class="sm mut" id="cfgmsg" aria-live="polite">Origem atual: ${esc(CFG_SRC)}.</span></p>
+ <div class="grid g2 cfg" style="margin-top:12px"><div class="box flat"><div class="bh"><h2>Metas mensais</h2><select class="sel" id="cfgM" aria-label="Mês">${months.map(m=>{const [y,mm]=m.split('-');return `<option value="${m}" ${m===mk?'selected':''}>${MES[+mm-1]} ${y}</option>`}).join('')}</select></div>
+ <div class="scroll"><table><thead><tr><th>Funil</th><th class="n">Qualificados</th><th class="n">Vendas</th></tr></thead><tbody>${FUN.map(f=>{const m=meta(f.id,mk);return `<tr><td>${esc(f.n)}<br><span class="sm mut">${esc(MARCAS[f.m])}</span></td><td class="n"><input type="number" min="0" data-meta="${esc(f.id)}|q" value="${m.q||''}" placeholder="—" aria-label="Meta de qualificados"></td><td class="n"><input type="number" min="0" data-meta="${esc(f.id)}|v" value="${m.v||''}" placeholder="—" aria-label="Meta de vendas"></td></tr>`}).join('')}</tbody></table></div>
+ <h3 style="margin-top:14px">Orçamento de mídia</h3><table><tbody>${Object.entries(MARCAS).map(([m,n])=>`<tr><td>${n}</td><td class="n"><input type="number" min="0" step="100" data-orc="${m}" value="${orc(m,mk)||''}" placeholder="—" aria-label="Orçamento ${n}" style="max-width:140px"></td></tr>`).join('')}</tbody></table></div>
+ <div class="box flat"><h2>Funis: operação e qualificação</h2><p class="mut sm">Funis carregados do RD. O negócio é qualificado no primeiro ingresso na etapa escolhida ou em etapa posterior, e conta uma única vez.</p>
+ <div class="scroll"><table class="stack"><thead><tr><th>Funil</th><th>Operação</th><th>Marco de qualificação</th></tr></thead><tbody>${FUN.map(f=>`<tr><td>${esc(f.n)}</td><td><select data-marca="${esc(f.id)}" aria-label="Operação">${Object.entries(MARCAS).map(([v,t])=>`<option value="${v}" ${f.m===v?'selected':''}>${t}</option>`).join('')}</select></td><td><select data-qual="${esc(f.id)}" aria-label="Marco de qualificação"><option value="-1" ${cfg.qual[f.id]<0?'selected':''}>Sem marco neste funil</option>${f.st.map((s,i)=>`<option value="${i}" ${cfg.qual[f.id]===i?'selected':''}>${esc(s)}</option>`).join('')}</select></td></tr>`).join('')}</tbody></table></div></div></div>
+ <div class="box cfg" style="margin-top:14px"><h2>Equivalência de etapas</h2><p class="mut sm">Permite comparar funis com nomes de etapa diferentes. Sugestão inicial feita pelo nome da etapa; revise.</p><div class="grid g3">${FUN.map(f=>`<div><h3>${esc(f.n)}</h3><table><tbody>${f.st.map((s,i)=>`<tr><td>${esc(s)}</td><td><select data-eq="${esc(f.id)}|${i}" aria-label="Equivalência">${Object.entries(GRUPOS).map(([g,t])=>`<option value="${g}" ${(cfg.eq[f.id]||[])[i]===g?'selected':''}>${t}</option>`).join('')}</select></td></tr>`).join('')}</tbody></table></div>`).join('')}</div></div>
+ <div class="grid g2"><div class="box flat"><h2>Tratamento de motivos de perda</h2><p class="mut sm">Grafias recebidas do RD que o painel corrigiu.</p><div class="scroll"><table><thead><tr><th>Recebido</th><th>Exibido</th><th class="n">Ocorrências</th></tr></thead><tbody>${Object.entries(MOTRAW).filter(([r])=>r!==cleanMot(r)).sort((x,y)=>y[1]-x[1]).slice(0,40).map(([r,n])=>`<tr><td><code>${esc(JSON.stringify(r))}</code></td><td>${esc(cleanMot(r))}</td><td class="n">${N(n)}</td></tr>`).join('')}<tr><td><code>vazio</code></td><td>Motivo não informado</td><td class="n">${N(D.filter(d=>d.st==='lost'&&!d.mo).length)}</td></tr></tbody></table></div></div>
+ <div class="box flat"><h2>Fontes e cobertura</h2><table class="stack"><thead><tr><th>Fonte</th><th>Última atualização</th><th>Frequência</th><th>Situação</th></tr></thead><tbody>
+ <tr><td>RD Station CRM · negócios</td><td>${fDT(GEN)}</td><td>A cada hora</td><td><span class="dot ${staleCls()}"></span>${STATUS&&STATUS.ok===false?'Última tentativa falhou':'Completa'}, ${N(D.length)} negócios em ${N(FUN.length)} funis</td></tr>
+ <tr><td>RD Station CRM · histórico de etapas</td><td>${fDT(GEN)}</td><td>A cada hora</td><td><span class="dot w"></span>Registrado desde ${fDT(HIST)}</td></tr>
+ <tr><td>Meta Ads e Google Ads</td><td>—</td><td>—</td><td><span class="dot w"></span>Integração pendente (Reportei ou contas de anúncio)</td></tr></tbody></table></div></div>`};
+
+/* ================= eventos das telas ================= */
+main.addEventListener('click',ev=>{const t=ev.target;
+ if(t.closest('a[href^="https://"]'))return;
+ const dr=t.closest('[data-drill]');if(dr){S.drill=dr.dataset.drill;S.dpage=0;S.open=null;location.hash='detalhamento';return}
+ const d2=t.closest('[data-drill2]');if(d2){S.drill=d2.dataset.drill2;S.dpage=0;S.open=null;renderView();return}
+ const gr=t.closest('[data-gran]');if(gr){S.gran=gr.dataset.gran;renderView();return}
+ const ff=t.closest('[data-ff]');if(ff){S.ff=ff.dataset.ff;renderView();return}
+ const tp=t.closest('[data-tp]');if(tp){S.tp=tp.dataset.tp;renderView();return}
+ const so=t.closest('[data-sort]');if(so){const k=so.dataset.sort;S.dsort={k,d:S.dsort.k===k?-S.dsort.d:-1};renderView();return}
+ const op=t.closest('[data-open]');if(op){S.open=S.open===op.dataset.open?null:op.dataset.open;renderView();return}
+ if(t.id==='pp'){S.dpage--;S.open=null;renderView();return}if(t.id==='pn'){S.dpage++;S.open=null;renderView();return}
+ if(t.id==='csv'){const rows=VIEWS._rows||[];const H=['id_negocio','link_rd','marca','funil_atual','etapa_atual','status','criado_em','qualificado_em','fechado_em','origem','campanha','responsavel','motivo_perda','praca'];
+  const q=v=>'"'+String(v==null?'':v).replace(/"/g,'""')+'"';const txt=[H.join(';')].concat(rows.map(d=>[d.id,'https://crm.rdstation.com/app/deals/'+d.id,MARCAS[d.m],FI[d.cf].n,FI[d.cf].st[d.cs],STL[d.st],iso(d.c),d.qa?iso(d.qa):'',d.ca?iso(d.ca):'',d.o,d.cp?CI[d.cp].n:'',d.ow,d.st==='lost'?(d.mo||'Motivo não informado'):'',d.pr].map(q).join(';'))).join('\n');
+  copy(txt,$('#csvmsg'),' CSV copiado: '+rows.length+' linhas, separado por ponto e vírgula.');return}
+ if(t.id==='cfgcopy'){copy(JSON.stringify(cfg,null,2),$('#cfgmsg'),' Copiado. Cole no arquivo config.json do repositório e salve.');return}
+ if(t.id==='reset'){try{localStorage.removeItem('bi-digna-cfg-v2')}catch(e){}cfg=JSON.parse(JSON.stringify(REPO_CFG||{qual:{},eq:{},marca:{},metas:{},orc:{}}));for(const k of ['qual','eq','marca','metas','orc'])cfg[k]=cfg[k]||{};CFG_SRC='config.json publicado';defaults();applyBrand();deriveQ();refresh();return}});
+function copy(txt,msg,ok){try{navigator.clipboard.writeText(txt).then(()=>{msg.textContent=ok},()=>{msg.textContent=' O navegador bloqueou a cópia.'})}catch(e){msg.textContent=' O navegador bloqueou a cópia.'}}
+let dqT=null;
+main.addEventListener('input',ev=>{const t=ev.target;if(t.id==='dq'){clearTimeout(dqT);dqT=setTimeout(()=>{S.dq=t.value;S.dpage=0;renderView();const n=$('#dq');if(n){n.focus();n.setSelectionRange(n.value.length,n.value.length)}},250)}});
+const edited=()=>{CFG_SRC='editada neste navegador';saveCfg()};
+main.addEventListener('change',ev=>{const t=ev.target;
+ if(t.id==='distP'){S.distP=t.checked;renderView();return}
+ if(t.id==='cfgM'){S.cfgM=t.value;renderView();return}
+ if(t.dataset.meta){const [f,k]=t.dataset.meta.split('|');const key=f+'|'+S.cfgM;cfg.metas[key]=Object.assign({},cfg.metas[key]||{},{[k]:Math.max(0,+t.value||0)});edited();return}
+ if(t.dataset.orc){cfg.orc[t.dataset.orc+'|'+S.cfgM]=Math.max(0,+t.value||0);edited();return}
+ if(t.dataset.qual){cfg.qual[t.dataset.qual]=+t.value;edited();deriveQ();SELC=null;return}
+ if(t.dataset.marca){cfg.marca[t.dataset.marca]=t.value;edited();applyBrand();SELC=null;renderTop();renderView();return}
+ if(t.dataset.eq){const [f,i]=t.dataset.eq.split('|');cfg.eq[f]=(cfg.eq[f]||[]).slice();cfg.eq[f][+i]=t.value;edited();return}});
+
+function route(){const h=location.hash.slice(1);S.tab=TABS.some(x=>x[0]===h)?h:'visao-geral';closePop();renderTop();renderView()}
+let REPO_CFG=null;
+async function boot(){main.innerHTML='<p class="mut" style="padding:40px 0">Carregando dados do RD CRM…</p>';
+ const getJ=async u=>{try{const r=await fetch(u,{cache:'no-store'});return r.ok?await r.json():null}catch(e){return null}};
+ const [bi,st,rc]=await Promise.all([getJ('data/bi.json'),getJ('data/status.json'),getJ('config.json')]);STATUS=st;REPO_CFG=rc;
+ if(!bi||!bi.deals){$('#filters').innerHTML='';$('#tabs').innerHTML='';$('#fresh').innerHTML='';
+  main.innerHTML=head('Aguardando a primeira sincronização com o RD CRM',(st&&st.ok===false?'A última tentativa falhou: '+esc(st.message||'erro desconhecido')+'. ':'')+'Configure o segredo RD_CRM_TOKEN no repositório e rode a ação "Sincronizar RD CRM" em Actions. O passo a passo está no README.');return}
+ loadData(bi);MIND=sod(Math.min(...D.map(d=>d.c).slice(0,1),D.reduce((m,d)=>Math.min(m,d.c),Infinity)));
+ let loc=null;try{loc=JSON.parse(localStorage.getItem('bi-digna-cfg-v2')||'null')}catch(e){}
+ const base=loc||rc;if(base)for(const k of ['qual','eq','marca','metas','orc'])cfg[k]=Object.assign({},base[k]||{});CFG_SRC=loc?'editada neste navegador':rc?'config.json publicado':'padrão sugerido pelo nome das etapas';
+ defaults();applyBrand();deriveQ();
+ addEventListener('hashchange',()=>{route();window.scrollTo(0,0)});route();
+ setInterval(()=>{NOW=Date.now()-OFF},60e3)}
+boot();
+}
+</script>
+<p class="foot" style="padding:0 max(3vw,14px) 24px;max-width:1440px;margin:0 auto">Dados do RD Station CRM sincronizados de hora em hora. O painel não guarda nome, e-mail nem telefone de contatos: pessoas são contadas por um código irreversível.</p>
+</body>
+</html>
