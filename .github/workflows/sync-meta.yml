@@ -9,7 +9,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: sync-data          # mesma fila da sincronização do RD: as duas nunca gravam ao mesmo tempo
+  group: sync-meta
   cancel-in-progress: false
 
 jobs:
