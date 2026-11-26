@@ -18,6 +18,8 @@ jobs:
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: main   # sempre a versão mais recente, mesmo ao reexecutar uma rodada antiga
       - uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -32,6 +34,11 @@ jobs:
           git config user.name "bi-digna-bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add data
-          git diff --cached --quiet || git commit -m "Sincroniza RD CRM $(date -u +%Y-%m-%dT%H:%MZ)"
-          git pull --rebase --autostash || true
-          git push
+          git diff --cached --quiet && { echo "Sem mudanças nos dados"; exit 0; }
+          git commit -m "Sincroniza RD CRM $(date -u +%Y-%m-%dT%H:%MZ)"
+          if ! git pull --rebase origin main; then
+            git rebase --abort || true
+            echo "::error::Outra sincronização gravou dados ao mesmo tempo. Nada foi perdido; a próxima rodada atualiza normalmente."
+            exit 1
+          fi
+          git push origin HEAD:main
