@@ -9,7 +9,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: sync-rd
+  group: sync-data
   cancel-in-progress: false
 
 jobs:

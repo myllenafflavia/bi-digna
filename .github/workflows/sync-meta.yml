@@ -1,0 +1,49 @@
+name: Sincronizar Meta Ads
+
+on:
+  schedule:
+    - cron: '23 * * * *'   # a cada hora, no minuto 23
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync-data          # mesma fila da sincronização do RD: as duas nunca gravam ao mesmo tempo
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    env:
+      # Contas permitidas: o script recusa qualquer conta fora desta lista
+      META_AD_ACCOUNTS: '1444452782074905,2000431566857709,311468502055498,195768907609096'
+      META_API_VERSION: ${{ vars.META_API_VERSION || 'v26.0' }}
+      META_START: ${{ vars.META_START || '2025-01-01' }}
+      META_REPROCESS_DAYS: '7'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Buscar dados no Meta Ads
+        run: node scripts/sync-meta.mjs
+        env:
+          META_ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
+      - name: Publicar dados
+        if: always()
+        run: |
+          git config user.name "bi-digna-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data
+          git diff --cached --quiet && { echo "Sem mudanças nos dados"; exit 0; }
+          git commit -m "Sincroniza Meta Ads $(date -u +%Y-%m-%dT%H:%MZ)"
+          if ! git pull --rebase origin main; then
+            git rebase --abort || true
+            echo "::error::Outra sincronização gravou dados ao mesmo tempo. Nada foi perdido; a próxima rodada atualiza normalmente."
+            exit 1
+          fi
+          git push origin HEAD:main
