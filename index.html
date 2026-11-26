@@ -197,7 +197,7 @@ const guessM=n=>/parque|jazig|cremat|cemit|ppaz/i.test(n)?'pp':/plano|wi-?fi|dig
 const normO=v=>{if(v==null)return 'Não informada';v=String(v).replace(/\s+/g,' ').trim();if(!v||/^desconhecid/i.test(v))return 'Não informada';return v.split('|').map(x=>{x=x.trim();return x.charAt(0).toUpperCase()+x.slice(1)}).join(' | ')};
 const guessEq=n=>/qualif|visita/i.test(n)?'qualificacao':/propost|apresent|or[cç]amento/i.test(n)?'proposta':/negocia|fechament/i.test(n)?'negociacao':/contato|abord|tentativa|conect|liga[cç]/i.test(n)?'abordagem':/entrada|novo|lead|inicial|base/i.test(n)?'entrada':'propria';
 let FUN=[],FI={},D=[],CI={},MOTRAW={},LISTS={};const CONT_DEALS=new Map();
-let cfg={qual:{},eq:{},marca:{},metas:{},orc:{},mbrand:{}};let CFG_SRC='padrão';
+let cfg={qual:{},eq:{},marca:{},metas:{},orc:{},mbrand:{},metaGeral:{}};let CFG_SRC='padrão';
 function loadData(bi){META=bi.meta;GEN=L(META.generated_at);HIST=L(META.track_start);DICT=bi.dict;
  FUN=bi.pipelines.map(p=>({id:p.id,n:p.name,st:p.stages.map(s=>s.name),m:'pd'}));FI=Object.fromEntries(FUN.map(f=>[f.id,f]));
  CI=Object.fromEntries(DICT.camp.map((n,i)=>[String(i),{n}]));
@@ -289,9 +289,14 @@ function buckets(a,b){let g=S.gran;const span=(b-a)/DAY;if(g==='hora'&&span>3)g=
  else if(g==='semana'){let t=sod(a)-((new Date(a).getUTCDay()+6)%7)*DAY;for(;t<b;t+=7*DAY)out.push({a:Math.max(t,a),b:Math.min(t+7*DAY,b),l:fDs(Math.max(t,a))})}
  else{for(let t=som(a);t<b;t=addM(t,1)){const d=new Date(t);out.push({a:Math.max(t,a),b:Math.min(addM(t,1),b),l:MESC[d.getUTCMonth()]+'/'+String(d.getUTCFullYear()).slice(2)})}}
  return {g,out}}
-function metaPer(a,b,kind){const fs=visFun().filter(f=>cfg.qual[f.id]>=0||kind==='v').map(f=>f.id);
- let s=0;for(let t=som(a);t<b;t=addM(t,1)){const e=addM(t,1),dm=(e-t)/DAY;const ov=(Math.min(e,b)-Math.max(t,a))/DAY;if(ov<=0)continue;const k=ym(t);for(const f of fs)s+=meta(f,k)[kind]*ov/dm}
+const noFilt=()=>Object.values(S.f).every(x=>!x.size);
+const metaMes=(k,kind)=>{const mg=cfg.metaGeral&&cfg.metaGeral[k];if(kind==='q'&&mg&&noFilt())return +mg;let s=0;for(const f of visFun())if(cfg.qual[f.id]>=0||kind==='v')s+=meta(f.id,k)[kind];return s};
+function metaPer(a,b,kind){let s=0;for(let t=som(a);t<b;t=addM(t,1)){const e=addM(t,1),dm=(e-t)/DAY;const ov=(Math.min(e,b)-Math.max(t,a))/DAY;if(ov<=0)continue;s+=metaMes(ym(t),kind)*ov/dm}
  return s>0?s:null}
+const geralNote=()=>!noFilt()&&Object.keys(cfg.metaGeral||{}).length?'<p class="sm mut">A meta geral vale para todas as operações juntas, sem filtros. Com filtros, aparecem só as metas cadastradas por funil.</p>':'';
+function ritmo(){const t=som(NOW),e=addM(t,1),dm=(e-t)/DAY,el=(NOW-t)/DAY;const k=ym(NOW);const mt=metaMes(k,'q');if(!mt)return null;
+ const q=SEL().filter(d=>d.qa!=null&&d.qa>=t&&d.qa<NOW).length;const proj=q/el*dm;const falta=Math.max(0,mt-q);const rest=Math.max(1,Math.ceil((e-NOW)/DAY));
+ return {k,mt,q,proj,falta,rest,porDia:falta/rest,ritmo:q/el,el,dm}}
 
 /* ================= gráficos ================= */
 const tip=$('#tip');
@@ -413,9 +418,16 @@ VIEWS['visao-geral']=()=>{const [a,b]=range(),cr=crange(a,b);const k=K(a,b),c=cr
  xy('f-evo',{labels:bk.out.map(x=>x.l),series:[{n:'Leads entrantes',c:'var(--grey)',t:'bar',v:ser.map(x=>x[0])},{n:'Qualificados',c:'var(--blue)',v:ser.map(x=>x[1])},{n:'Vendas',c:'var(--green)',v:ser.map(x=>x[2])}],aria:'Evolução de leads, qualificados e vendas'});
  xy('f-meta',metaChart(b))};
 function metaBlock(a,b){const sel=SEL();const qe=sel.filter(d=>d.qa!=null&&d.qa>=a&&d.qa<b).length;const mq=metaPer(a,b,'q');
- if(!mq)return '<p class="mut">Sem metas cadastradas para a seleção.</p>';const p=qe/mq;
+ if(!mq)return '<p class="mut">Sem metas cadastradas para a seleção.</p>'+geralNote();const p=qe/mq;const r=a<=som(NOW)+DAY&&b>=NOW-DAY&&a>=som(NOW)?ritmo():null;
  return `<p style="margin-top:10px"><span class="fig-n" style="font-size:30px;font-weight:900">${N(qe)}</span> <span class="mut">de ${N(mq)} previstos para o período</span></p><div class="meter" aria-label="Atingimento"><span style="width:${Math.min(100,p*100)}%;background:${p>=1?'var(--green)':'var(--blue)'}"></span></div><p class="sm"><b>${nf.format(Math.round(p*100))}% de atingimento</b>${qe!==K(a,b).qual?' <span class="mut">· este número segue a data da qualificação, por isso pode diferir do cartão na visão por entrada</span>':''}</p>`+
+  (r?`<div class="grid g2" style="margin-top:10px;gap:10px"><div><span class="l sm mut">Projeção para ${MES[new Date(NOW).getUTCMonth()]}</span><div class="fig-n" style="font-size:24px;font-weight:900">${N(r.proj)} <span class="sm mut" style="font-weight:700">${nf.format(Math.round(r.proj/r.mt*100))}% da meta de ${N(r.mt)}</span></div><span class="sm mut">no ritmo atual de ${nf1.format(r.ritmo)} por dia</span></div>
+  <div><span class="l sm mut">Para bater a meta</span><div class="fig-n" style="font-size:24px;font-weight:900">${r.falta?N(r.falta):'Meta batida'}</div><span class="sm mut">${r.falta?'faltam, cerca de '+nf1.format(r.porDia)+' por dia nos '+r.rest+' dias restantes':'já acima da meta do mês'}</span></div></div>`:'')+geralNote()+
   `<h3 style="margin-top:14px">Últimos 12 meses</h3>${leg([['Qualificados','var(--blue)'],['Meta','var(--ink)',1]])}<div class="fig s" id="f-meta"></div>`}
+function metaTable(){const ks=[...new Set([...Object.keys(cfg.metaGeral||{}),...Object.keys(cfg.metas||{}).map(x=>x.split('|')[1])])].filter(Boolean).sort();
+ const rows=ks.map(k=>{const [y,m]=k.split('-').map(Number);const t=Date.UTC(y,m-1,1),e=addM(t,1);const mt=metaMes(k,'q');if(!mt)return '';const q=SEL().filter(d=>d.qa!=null&&d.qa>=t&&d.qa<Math.min(e,NOW)).length;
+  const cur=k===ym(NOW),fut=t>NOW;const r=cur?ritmo():null;const sit=fut?'<span class="mut">a começar</span>':cur?`projeção ${N(r.proj)} (${nf.format(Math.round(r.proj/mt*100))}%)`:q>=mt?'<span class="tag t-won">batida</span>':'<span class="tag t-lost">não batida</span>';
+  return `<tr><td>${MES[m-1]} ${y}</td><td class="n">${N(mt)}</td><td class="n">${fut?'—':N(q)}</td><td class="n">${fut?'—':nf.format(Math.round(q/mt*100))+'%'}</td><td>${sit}</td></tr>`}).join('');
+ return rows?`<div class="scroll"><table class="stack"><thead><tr><th>Mês</th><th class="n">Meta</th><th class="n">Realizado</th><th class="n">Atingimento</th><th>Situação</th></tr></thead><tbody>${rows}</tbody></table></div>`+geralNote():'<p class="mut">Sem metas cadastradas para a seleção.</p>'+geralNote()}
 function metaChart(b){const sel=SEL();const end=som(b-1);const ms=[];for(let i=11;i>=0;i--)ms.push(addM(end,-i));
  const q=ms.map(t=>{const e=Math.min(addM(t,1),NOW);return sel.filter(d=>d.qa!=null&&d.qa>=t&&d.qa<e).length});
  const mt=ms.map(t=>metaPer(t,addM(t,1),'q'));
@@ -455,6 +467,7 @@ VIEWS['qualificacao']=()=>{const [a,b]=range();const k=K(a,b);const sel=SEL();co
  main.innerHTML=head(`Taxa de qualificação de ${PC(k.tq!=null?k.tq:ratio(k.ent.filter(d=>d.qa!=null).length,k.leads))} em ${esc(plabel(a,b))}`,`Regra por funil definida em Configurações. Cada negócio conta uma única vez como qualificado, mesmo que volte de etapa.`)+
  (k.qinf?`<p class="note">${N(k.qinf)} qualificações deste recorte são de negócios anteriores a ${fD(HIST)}: foram inferidas pela etapa atual, com a data de criação como referência.</p>`:'')+
  `<div class="grid g2"><div class="box flat"><h2>Meta de qualificados × resultado</h2><p class="mut sm">Mensal, pela data da qualificação. O percentual sobre a barra é o atingimento.</p>${leg([['Qualificados','var(--blue)'],['Meta','var(--ink)',1]])}<div class="fig" id="q-meta"></div></div>
+ <div class="box flat"><h2>Meta mensal × realizado</h2><p class="mut sm">Leads qualificados pela data da qualificação.</p>${metaTable()}</div>
  <div class="box flat"><h2>Taxa de qualificação por mês de entrada</h2><p class="mut sm">Negócios criados em cada mês que qualificaram até a última atualização. Meses recentes ainda estão amadurecendo.</p>${leg([['Taxa de qualificação','var(--blue)',1]])}<div class="fig" id="q-tx"></div></div>
  <div class="box flat"><h2>Por origem</h2><p class="mut sm">Qualificados ÷ negócios criados no período, mesma origem.</p>${qrow(byO)}</div>
  <div class="box flat"><h2>Por campanha</h2><p class="mut sm">Campanhas com ao menos 5 negócios no período.</p>${qrow(byC)}</div></div>
@@ -552,6 +565,7 @@ VIEWS['configuracoes']=()=>{const mk=S.cfgM;const months=[];for(let t=addM(som(N
  main.innerHTML=head('Configurações','As mudanças valem na hora neste navegador. Para valer para todo o time, copie a configuração e cole no arquivo config.json do repositório.')+
  `<p><button class="btn pr" id="cfgcopy">Copiar configuração (config.json)</button> <button class="btn" id="reset">Voltar ao config.json publicado</button> <span class="sm mut" id="cfgmsg" aria-live="polite">Origem atual: ${esc(CFG_SRC)}.</span></p>
  <div class="grid g2 cfg" style="margin-top:12px"><div class="box flat"><div class="bh"><h2>Metas mensais</h2><select class="sel" id="cfgM" aria-label="Mês">${months.map(m=>{const [y,mm]=m.split('-');return `<option value="${m}" ${m===mk?'selected':''}>${MES[+mm-1]} ${y}</option>`}).join('')}</select></div>
+ <p class="sm" style="margin:6px 0 10px"><label>Meta geral de leads qualificados, todas as operações: <input type="number" min="0" data-mgeral="1" value="${(cfg.metaGeral||{})[mk]||''}" placeholder="—" aria-label="Meta geral de qualificados"></label></p>
  <div class="scroll"><table><thead><tr><th>Funil</th><th class="n">Qualificados</th><th class="n">Vendas</th></tr></thead><tbody>${FUN.map(f=>{const m=meta(f.id,mk);return `<tr><td>${esc(f.n)}<br><span class="sm mut">${esc(MARCAS[f.m])}</span></td><td class="n"><input type="number" min="0" data-meta="${esc(f.id)}|q" value="${m.q||''}" placeholder="—" aria-label="Meta de qualificados"></td><td class="n"><input type="number" min="0" data-meta="${esc(f.id)}|v" value="${m.v||''}" placeholder="—" aria-label="Meta de vendas"></td></tr>`}).join('')}</tbody></table></div>
  <h3 style="margin-top:14px">Orçamento de mídia</h3><table><tbody>${Object.entries(MARCAS).map(([m,n])=>`<tr><td>${n}</td><td class="n"><input type="number" min="0" step="100" data-orc="${m}" value="${orc(m,mk)||''}" placeholder="—" aria-label="Orçamento ${n}" style="max-width:140px"></td></tr>`).join('')}</tbody></table></div>
  <div class="box flat"><h2>Funis: operação e qualificação</h2><p class="mut sm">Funis carregados do RD. O negócio é qualificado no primeiro ingresso na etapa escolhida ou em etapa posterior, e conta uma única vez.</p>
@@ -662,7 +676,7 @@ main.addEventListener('click',ev=>{const t=ev.target;
   const q=v=>'"'+String(v==null?'':v).replace(/"/g,'""')+'"';const txt=[H.join(';')].concat(rows.map(d=>[d.id,'https://crm.rdstation.com/app/deals/'+d.id,MARCAS[d.m],FI[d.cf].n,FI[d.cf].st[d.cs],STL[d.st],iso(d.c),d.qa?iso(d.qa):'',d.ca?iso(d.ca):'',d.o,d.cp?CI[d.cp].n:'',d.ow,d.st==='lost'?(d.mo||'Motivo não informado'):'',d.pr].map(q).join(';'))).join('\n');
   copy(txt,$('#csvmsg'),' CSV copiado: '+rows.length+' linhas, separado por ponto e vírgula.');return}
  if(t.id==='cfgcopy'){copy(JSON.stringify(cfg,null,2),$('#cfgmsg'),' Copiado. Cole no arquivo config.json do repositório e salve.');return}
- if(t.id==='reset'){try{localStorage.removeItem('bi-digna-cfg-v2')}catch(e){}cfg=JSON.parse(JSON.stringify(REPO_CFG||{qual:{},eq:{},marca:{},metas:{},orc:{}}));for(const k of ['qual','eq','marca','metas','orc','mbrand'])cfg[k]=cfg[k]||{};CFG_SRC='config.json publicado';defaults();applyBrand();deriveQ();refresh();return}});
+ if(t.id==='reset'){try{localStorage.removeItem('bi-digna-cfg-v2')}catch(e){}cfg=JSON.parse(JSON.stringify(REPO_CFG||{qual:{},eq:{},marca:{},metas:{},orc:{}}));for(const k of ['qual','eq','marca','metas','orc','mbrand','metaGeral'])cfg[k]=cfg[k]||{};CFG_SRC='config.json publicado';defaults();applyBrand();deriveQ();refresh();return}});
 function copy(txt,msg,ok){try{navigator.clipboard.writeText(txt).then(()=>{msg.textContent=ok},()=>{msg.textContent=' O navegador bloqueou a cópia.'})}catch(e){msg.textContent=' O navegador bloqueou a cópia.'}}
 let dqT=null;
 main.addEventListener('input',ev=>{const t=ev.target;if(t.id==='dq'){clearTimeout(dqT);dqT=setTimeout(()=>{S.dq=t.value;S.dpage=0;renderView();const n=$('#dq');if(n){n.focus();n.setSelectionRange(n.value.length,n.value.length)}},250)}});
@@ -671,6 +685,7 @@ main.addEventListener('change',ev=>{const t=ev.target;
  if(t.id==='distP'){S.distP=t.checked;renderView();return}
  if(t.id==='cfgM'){S.cfgM=t.value;renderView();return}
  if(t.dataset.meta){const [f,k]=t.dataset.meta.split('|');const key=f+'|'+S.cfgM;cfg.metas[key]=Object.assign({},cfg.metas[key]||{},{[k]:Math.max(0,+t.value||0)});edited();return}
+ if(t.dataset.mgeral){const v=Math.max(0,+t.value||0);if(v)cfg.metaGeral[S.cfgM]=v;else delete cfg.metaGeral[S.cfgM];edited();return}
  if(t.dataset.orc){cfg.orc[t.dataset.orc+'|'+S.cfgM]=Math.max(0,+t.value||0);edited();return}
  if(t.dataset.qual){cfg.qual[t.dataset.qual]=+t.value;edited();deriveQ();SELC=null;return}
  if(t.dataset.marca){cfg.marca[t.dataset.marca]=t.value;edited();applyBrand();SELC=null;renderTop();renderView();return}
@@ -686,7 +701,7 @@ async function boot(){main.innerHTML='<p class="mut" style="padding:40px 0">Carr
   main.innerHTML=head('Aguardando a primeira sincronização com o RD CRM',(st&&st.ok===false?'A última tentativa falhou: '+esc(st.message||'erro desconhecido')+'. ':'')+'Configure o segredo RD_CRM_TOKEN no repositório e rode a ação "Sincronizar RD CRM" em Actions. O passo a passo está no README.');return}
  loadData(bi);MIND=sod(Math.min(...D.map(d=>d.c).slice(0,1),D.reduce((m,d)=>Math.min(m,d.c),Infinity)));
  let loc=null;try{loc=JSON.parse(localStorage.getItem('bi-digna-cfg-v2')||'null')}catch(e){}
- const base=loc||rc;if(base)for(const k of ['qual','eq','marca','metas','orc','mbrand'])cfg[k]=Object.assign({},base[k]||{});CFG_SRC=loc?'editada neste navegador':rc?'config.json publicado':'padrão sugerido pelo nome das etapas';
+ const base=loc||rc;if(base)for(const k of ['qual','eq','marca','metas','orc','mbrand'])cfg[k]=Object.assign({},base[k]||{});cfg.metaGeral=Object.assign({},rc&&rc.metaGeral||{},loc&&loc.metaGeral||{});CFG_SRC=loc?'editada neste navegador':rc?'config.json publicado':'padrão sugerido pelo nome das etapas';
  defaults();applyBrand();deriveQ();
  addEventListener('hashchange',()=>{route();window.scrollTo(0,0)});route();
  setInterval(()=>{NOW=Date.now()-OFF},60e3)}
