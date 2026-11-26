@@ -293,9 +293,12 @@ const noFilt=()=>Object.values(S.f).every(x=>!x.size);
 const metaMes=(k,kind)=>{const mg=cfg.metaGeral&&cfg.metaGeral[k];if(kind==='q'&&mg&&noFilt())return +mg;let s=0;for(const f of visFun())if(cfg.qual[f.id]>=0||kind==='v')s+=meta(f.id,k)[kind];return s};
 function metaPer(a,b,kind){let s=0;for(let t=som(a);t<b;t=addM(t,1)){const e=addM(t,1),dm=(e-t)/DAY;const ov=(Math.min(e,b)-Math.max(t,a))/DAY;if(ov<=0)continue;s+=metaMes(ym(t),kind)*ov/dm}
  return s>0?s:null}
+function metaScope(){if(noFilt()&&Object.values(cfg.metaGeral||{}).some(v=>v>0))return null;const fs=new Set;for(const [k,v] of Object.entries(cfg.metas||{}))if(v&&v.q>0)fs.add(k.split('|')[0]);const vis=new Set(visFun().map(f=>f.id));const out=new Set([...fs].filter(f=>vis.has(f)));return out.size?out:null}
+const qCount=(t,e)=>{const sc=metaScope();return SEL().filter(d=>d.qa!=null&&d.qa>=t&&d.qa<e&&(!sc||sc.has(d.qf))).length};
+const scopeLabel=()=>{const sc=metaScope();return sc?[...sc].map(f=>FI[f]?FI[f].n:f).join(', '):'todas as operações'};
 const geralNote=()=>!noFilt()&&Object.keys(cfg.metaGeral||{}).length?'<p class="sm mut">A meta geral vale para todas as operações juntas, sem filtros. Com filtros, aparecem só as metas cadastradas por funil.</p>':'';
 function ritmo(){const t=som(NOW),e=addM(t,1),dm=(e-t)/DAY,el=(NOW-t)/DAY;const k=ym(NOW);const mt=metaMes(k,'q');if(!mt)return null;
- const q=SEL().filter(d=>d.qa!=null&&d.qa>=t&&d.qa<NOW).length;const proj=q/el*dm;const falta=Math.max(0,mt-q);const rest=Math.max(1,Math.ceil((e-NOW)/DAY));
+ const q=qCount(t,NOW);const proj=q/el*dm;const falta=Math.max(0,mt-q);const rest=Math.max(1,Math.ceil((e-NOW)/DAY));
  return {k,mt,q,proj,falta,rest,porDia:falta/rest,ritmo:q/el,el,dm}}
 
 /* ================= gráficos ================= */
@@ -414,22 +417,22 @@ VIEWS['visao-geral']=()=>{const [a,b]=range(),cr=crange(a,b);const k=K(a,b),c=cr
   `<div class="grid g2"><div class="box flat" id="ov-evo"><div class="bh"><div><h2>Entrada, qualificação e vendas</h2><p class="mut sm">${ev?'Eventos ocorridos em cada intervalo':'Agrupado pela data de entrada do negócio; conversões contadas até a última atualização'}</p></div>
    <div class="seg" role="group" aria-label="Granularidade">${['auto','hora','dia','semana','mes'].map(g=>`<button data-gran="${g}" class="${S.gran===g?'on':''}">${g==='auto'?'Auto':g==='mes'?'Mês':g[0].toUpperCase()+g.slice(1)}</button>`).join('')}</div></div>
    ${leg([['Leads entrantes','var(--grey)'],['Qualificados','var(--blue)',1],['Vendas','var(--green)',1]])}<div class="fig" id="f-evo"></div></div>
-  <div class="box flat" id="ov-meta"><h2>Meta de qualificados</h2><p class="mut sm">Meta mensal proporcional aos dias do período, somando os funis visíveis. Qualificação medida pela data em que aconteceu.</p>${metaBlock(a,b)}</div></div>`;
+  <div class="box flat" id="ov-meta"><h2>Meta de qualificados</h2><p class="mut sm">Meta mensal proporcional aos dias do período, contando só os funis que têm meta. Qualificação medida pela data em que aconteceu.</p>${metaBlock(a,b)}</div></div>`;
  xy('f-evo',{labels:bk.out.map(x=>x.l),series:[{n:'Leads entrantes',c:'var(--grey)',t:'bar',v:ser.map(x=>x[0])},{n:'Qualificados',c:'var(--blue)',v:ser.map(x=>x[1])},{n:'Vendas',c:'var(--green)',v:ser.map(x=>x[2])}],aria:'Evolução de leads, qualificados e vendas'});
  xy('f-meta',metaChart(b))};
-function metaBlock(a,b){const sel=SEL();const qe=sel.filter(d=>d.qa!=null&&d.qa>=a&&d.qa<b).length;const mq=metaPer(a,b,'q');
+function metaBlock(a,b){const qe=qCount(a,b);const mq=metaPer(a,b,'q');
  if(!mq)return '<p class="mut">Sem metas cadastradas para a seleção.</p>'+geralNote();const p=qe/mq;const r=a<=som(NOW)+DAY&&b>=NOW-DAY&&a>=som(NOW)?ritmo():null;
- return `<p style="margin-top:10px"><span class="fig-n" style="font-size:30px;font-weight:900">${N(qe)}</span> <span class="mut">de ${N(mq)} previstos para o período</span></p><div class="meter" aria-label="Atingimento"><span style="width:${Math.min(100,p*100)}%;background:${p>=1?'var(--green)':'var(--blue)'}"></span></div><p class="sm"><b>${nf.format(Math.round(p*100))}% de atingimento</b>${qe!==K(a,b).qual?' <span class="mut">· este número segue a data da qualificação, por isso pode diferir do cartão na visão por entrada</span>':''}</p>`+
+ return `<p style="margin-top:10px"><span class="fig-n" style="font-size:30px;font-weight:900">${N(qe)}</span> <span class="mut">de ${N(mq)} previstos para o período · ${esc(scopeLabel())}</span></p><div class="meter" aria-label="Atingimento"><span style="width:${Math.min(100,p*100)}%;background:${p>=1?'var(--green)':'var(--blue)'}"></span></div><p class="sm"><b>${nf.format(Math.round(p*100))}% de atingimento</b>${qe!==K(a,b).qual?' <span class="mut">· este número segue a data da qualificação, por isso pode diferir do cartão na visão por entrada</span>':''}</p>`+
   (r?`<div class="grid g2" style="margin-top:10px;gap:10px"><div><span class="l sm mut">Projeção para ${MES[new Date(NOW).getUTCMonth()]}</span><div class="fig-n" style="font-size:24px;font-weight:900">${N(r.proj)} <span class="sm mut" style="font-weight:700">${nf.format(Math.round(r.proj/r.mt*100))}% da meta de ${N(r.mt)}</span></div><span class="sm mut">no ritmo atual de ${nf1.format(r.ritmo)} por dia</span></div>
   <div><span class="l sm mut">Para bater a meta</span><div class="fig-n" style="font-size:24px;font-weight:900">${r.falta?N(r.falta):'Meta batida'}</div><span class="sm mut">${r.falta?'faltam, cerca de '+nf1.format(r.porDia)+' por dia nos '+r.rest+' dias restantes':'já acima da meta do mês'}</span></div></div>`:'')+geralNote()+
   `<h3 style="margin-top:14px">Últimos 12 meses</h3>${leg([['Qualificados','var(--blue)'],['Meta','var(--ink)',1]])}<div class="fig s" id="f-meta"></div>`}
 function metaTable(){const ks=[...new Set([...Object.keys(cfg.metaGeral||{}),...Object.keys(cfg.metas||{}).map(x=>x.split('|')[1])])].filter(Boolean).sort();
- const rows=ks.map(k=>{const [y,m]=k.split('-').map(Number);const t=Date.UTC(y,m-1,1),e=addM(t,1);const mt=metaMes(k,'q');if(!mt)return '';const q=SEL().filter(d=>d.qa!=null&&d.qa>=t&&d.qa<Math.min(e,NOW)).length;
+ const rows=ks.map(k=>{const [y,m]=k.split('-').map(Number);const t=Date.UTC(y,m-1,1),e=addM(t,1);const mt=metaMes(k,'q');if(!mt)return '';const q=qCount(t,Math.min(e,NOW));
   const cur=k===ym(NOW),fut=t>NOW;const r=cur?ritmo():null;const sit=fut?'<span class="mut">a começar</span>':cur?`projeção ${N(r.proj)} (${nf.format(Math.round(r.proj/mt*100))}%)`:q>=mt?'<span class="tag t-won">batida</span>':'<span class="tag t-lost">não batida</span>';
   return `<tr><td>${MES[m-1]} ${y}</td><td class="n">${N(mt)}</td><td class="n">${fut?'—':N(q)}</td><td class="n">${fut?'—':nf.format(Math.round(q/mt*100))+'%'}</td><td>${sit}</td></tr>`}).join('');
  return rows?`<div class="scroll"><table class="stack"><thead><tr><th>Mês</th><th class="n">Meta</th><th class="n">Realizado</th><th class="n">Atingimento</th><th>Situação</th></tr></thead><tbody>${rows}</tbody></table></div>`+geralNote():'<p class="mut">Sem metas cadastradas para a seleção.</p>'+geralNote()}
 function metaChart(b){const sel=SEL();const end=som(b-1);const ms=[];for(let i=11;i>=0;i--)ms.push(addM(end,-i));
- const q=ms.map(t=>{const e=Math.min(addM(t,1),NOW);return sel.filter(d=>d.qa!=null&&d.qa>=t&&d.qa<e).length});
+ const q=ms.map(t=>qCount(t,Math.min(addM(t,1),NOW)));
  const mt=ms.map(t=>metaPer(t,addM(t,1),'q'));
  return {labels:ms.map(t=>MESC[new Date(t).getUTCMonth()]),tipL:ms.map(t=>MES[new Date(t).getUTCMonth()]+' '+new Date(t).getUTCFullYear()),series:[{n:'Qualificados',c:'var(--blue)',t:'bar',v:q}],marks:mt,tops:q.map((v,i)=>mt[i]?nf.format(Math.round(v/mt[i]*100))+'%':null),aria:'Meta de qualificados por mês'}}
 
@@ -467,7 +470,7 @@ VIEWS['qualificacao']=()=>{const [a,b]=range();const k=K(a,b);const sel=SEL();co
  main.innerHTML=head(`Taxa de qualificação de ${PC(k.tq!=null?k.tq:ratio(k.ent.filter(d=>d.qa!=null).length,k.leads))} em ${esc(plabel(a,b))}`,`Regra por funil definida em Configurações. Cada negócio conta uma única vez como qualificado, mesmo que volte de etapa.`)+
  (k.qinf?`<p class="note">${N(k.qinf)} qualificações deste recorte são de negócios anteriores a ${fD(HIST)}: foram inferidas pela etapa atual, com a data de criação como referência.</p>`:'')+
  `<div class="grid g2"><div class="box flat"><h2>Meta de qualificados × resultado</h2><p class="mut sm">Mensal, pela data da qualificação. O percentual sobre a barra é o atingimento.</p>${leg([['Qualificados','var(--blue)'],['Meta','var(--ink)',1]])}<div class="fig" id="q-meta"></div></div>
- <div class="box flat"><h2>Meta mensal × realizado</h2><p class="mut sm">Leads qualificados pela data da qualificação.</p>${metaTable()}</div>
+ <div class="box flat"><h2>Meta mensal × realizado</h2><p class="mut sm">Leads qualificados pela data da qualificação, em ${esc(scopeLabel())}.</p>${metaTable()}</div>
  <div class="box flat"><h2>Taxa de qualificação por mês de entrada</h2><p class="mut sm">Negócios criados em cada mês que qualificaram até a última atualização. Meses recentes ainda estão amadurecendo.</p>${leg([['Taxa de qualificação','var(--blue)',1]])}<div class="fig" id="q-tx"></div></div>
  <div class="box flat"><h2>Por origem</h2><p class="mut sm">Qualificados ÷ negócios criados no período, mesma origem.</p>${qrow(byO)}</div>
  <div class="box flat"><h2>Por campanha</h2><p class="mut sm">Campanhas com ao menos 5 negócios no período.</p>${qrow(byC)}</div></div>
@@ -701,7 +704,7 @@ async function boot(){main.innerHTML='<p class="mut" style="padding:40px 0">Carr
   main.innerHTML=head('Aguardando a primeira sincronização com o RD CRM',(st&&st.ok===false?'A última tentativa falhou: '+esc(st.message||'erro desconhecido')+'. ':'')+'Configure o segredo RD_CRM_TOKEN no repositório e rode a ação "Sincronizar RD CRM" em Actions. O passo a passo está no README.');return}
  loadData(bi);MIND=sod(Math.min(...D.map(d=>d.c).slice(0,1),D.reduce((m,d)=>Math.min(m,d.c),Infinity)));
  let loc=null;try{loc=JSON.parse(localStorage.getItem('bi-digna-cfg-v2')||'null')}catch(e){}
- const base=loc||rc;if(base)for(const k of ['qual','eq','marca','metas','orc','mbrand'])cfg[k]=Object.assign({},base[k]||{});cfg.metaGeral=Object.assign({},rc&&rc.metaGeral||{},loc&&loc.metaGeral||{});CFG_SRC=loc?'editada neste navegador':rc?'config.json publicado':'padrão sugerido pelo nome das etapas';
+ const base=loc||rc;if(base)for(const k of ['qual','eq','marca','metas','orc','mbrand'])cfg[k]=Object.assign({},base[k]||{});cfg.metaGeral=Object.assign({},rc&&rc.metaGeral||{},loc&&loc.metaGeral||{});cfg.metas=Object.assign({},rc&&rc.metas||{},loc&&loc.metas||{});CFG_SRC=loc?'editada neste navegador':rc?'config.json publicado':'padrão sugerido pelo nome das etapas';
  defaults();applyBrand();deriveQ();
  addEventListener('hashchange',()=>{route();window.scrollTo(0,0)});route();
  setInterval(()=>{NOW=Date.now()-OFF},60e3)}
