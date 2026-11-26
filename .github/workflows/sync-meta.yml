@@ -2,7 +2,7 @@ name: Sincronizar Meta Ads
 
 on:
   schedule:
-    - cron: '23 * * * *'   # a cada hora, no minuto 23
+    - cron: '13,33,53 * * * *'   # três tentativas por hora (o agendador do GitHub atrasa ou pula rodadas)
   workflow_dispatch:
 
 permissions:

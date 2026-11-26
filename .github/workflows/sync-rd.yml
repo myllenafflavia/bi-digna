@@ -2,8 +2,15 @@ name: Sincronizar RD CRM
 
 on:
   schedule:
-    - cron: '7 * * * *'   # a cada hora, no minuto 7
+    # O agendador do GitHub atrasa ou pula rodadas; três tentativas por hora
+    # mantêm os dados com no máximo cerca de uma hora de atraso.
+    - cron: '3,23,43 * * * *'
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/sync-rd.mjs'
+      - '.github/workflows/sync-rd.yml'
 
 permissions:
   contents: write
