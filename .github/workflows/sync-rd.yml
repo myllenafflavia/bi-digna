@@ -16,17 +16,15 @@ permissions:
   contents: write
   actions: write   # para a rodada agendar a próxima
 
-concurrency:
-  group: sync-rd
-  cancel-in-progress: false
 
 jobs:
   sync:
     runs-on: ubuntu-latest
+    concurrency:
+      group: rd-sync   # uma coleta por vez; a espera da corrente fica fora da fila
+      cancel-in-progress: false
     timeout-minutes: 40
     steps:
-      - name: Marcar início
-        run: echo "T0=$(date +%s)" >> "$GITHUB_ENV"
       - uses: actions/checkout@v4
         with:
           ref: main   # sempre a versão mais recente, mesmo ao reexecutar uma rodada antiga
@@ -52,20 +50,28 @@ jobs:
             exit 1
           fi
           git push origin HEAD:main
-      - name: Agendar a próxima rodada (20 min após o início desta)
-        # O agendador do GitHub atrasa ou pula rodadas; esta corrente mantém a
-        # atualização a cada 20 minutos. Para pausar, crie a variável RD_AUTOLOOP=off.
-        if: always() && vars.RD_AUTOLOOP != 'off'
+
+  agendar:
+    # Corrente que não depende do agendador do GitHub: espera 20 minutos desde o início
+    # desta rodada e dispara a próxima, a menos que já exista uma rodada mais nova.
+    # Para pausar, crie a variável RD_AUTOLOOP=off.
+    needs: sync
+    if: always() && vars.RD_AUTOLOOP != 'off'
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    steps:
+      - name: Esperar e agendar a próxima rodada
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          WAIT=$(( 1200 - ($(date +%s) - T0) ))
+          START=$(date -d "$(gh api repos/$GITHUB_REPOSITORY/actions/runs/${{ github.run_id }} --jq .created_at)" +%s)
+          WAIT=$(( 1200 - ($(date +%s) - START) ))
           if [ "$WAIT" -gt 0 ]; then sleep "$WAIT"; fi
-          OTHERS=$(gh run list -R "$GITHUB_REPOSITORY" -w sync-rd.yml -L 20 --json status,databaseId \
-            --jq '[.[] | select(.status!="completed" and .databaseId != ${{ github.run_id }})] | length')
-          if [ "$OTHERS" = "0" ]; then
+          ME=$(gh api repos/$GITHUB_REPOSITORY/actions/runs/${{ github.run_id }} --jq .created_at)
+          NEWER=$(gh run list -R "$GITHUB_REPOSITORY" -w sync-rd.yml -L 20 --json createdAt --jq "[.[] | select(.createdAt > \"$ME\")] | length")
+          if [ "$NEWER" = "0" ]; then
             gh workflow run sync-rd.yml -R "$GITHUB_REPOSITORY" --ref main
             echo "Próxima rodada agendada."
           else
-            echo "Já existe outra rodada na fila; nenhuma nova foi criada."
+            echo "Já existe uma rodada mais nova; esta corrente termina aqui."
           fi
