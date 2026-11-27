@@ -14,6 +14,8 @@ const PAUSE = Number(process.env.META_PAUSE_MS || 300);
 const OUT = process.env.OUT_DIR || 'data';
 const STORE = path.join(OUT, 'meta');
 const WARN_DAYS = 15;
+const MAX_MS = Number(process.env.META_MAX_MINUTES || 35) * 60e3; // tempo máximo da carga histórica por rodada
+const T_START = Date.now();
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const redact = s => String(s).split(TOKEN || '\u0000').join('***').replace(/access_token=[^&\s"]+/gi, 'access_token=***');
@@ -139,6 +141,7 @@ async function syncAccount(acct, info) {
   // carga histórica por mês, salvando a cada mês concluído
   for (let m = monthStart(START); m < winStart; m = addD(monthEnd(m), 1)) {
     const key = m.slice(0, 7); if (st.done.includes(key)) continue;
+    if (Date.now() - T_START > MAX_MS) { st.partial = true; log(info.name, 'histórico continua na próxima rodada (a partir de', key + ')'); break; }
     const s = maxD(maxD(m, START), st.fetchedUntil ? addD(st.fetchedUntil, 1) : START), u = minD(monthEnd(m), addD(winStart, -1));
     if (s > u) { if (u === monthEnd(m)) st.done.push(key); continue; }
     const n = await fetchDays(st, acct, s, u);
@@ -207,6 +210,7 @@ async function main() {
       s.ok = true; s.updated_at = st.updated_at;
     } catch (e) {
       if (e.kind === 'token') { status.ok = false; status.error = e.message; s.error = e.message; status.accounts[acct] = s; break; }
+      if (e.kind === 'permission') { s.pending = true; s.error = 'Acesso pendente: o token não tem permissão nesta conta.'; status.accounts[acct] = s; log('conta', acct, 'sem acesso ainda (acesso pendente)'); continue; }
       s.error = e.message; status.ok = false; log('conta', acct, 'falhou:', e.message, '- mantendo os dados anteriores');
       const old = (prev.accounts || {})[acct]; if (old) s.updated_at = old.updated_at;
     }
@@ -229,7 +233,9 @@ async function main() {
   }
   await writeJson(path.join(OUT, 'meta.json'), bundle);
   await writeJson(statusFile, status);
-  const fail = Object.values(status.accounts).filter(a => !a.ok);
+  const fail = Object.values(status.accounts).filter(a => !a.ok && !a.pending);
+  const pend = Object.values(status.accounts).filter(a => a.pending);
+  if (pend.length) console.log(`::warning::${pend.length} conta(s) com acesso pendente: ${pend.map(a => a.id).join(', ')}`);
 
   if (fail.length) { console.log(`::error::${fail.length} conta(s) sem atualização: ${fail.map(a => a.id + ' (' + (a.error || '') + ')').join('; ')}`); process.exitCode = 1; }
   log('fim:', Object.values(status.accounts).filter(a => a.ok).length, 'de', ALLOWED.length, 'contas atualizadas');

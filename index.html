@@ -620,8 +620,9 @@ VIEWS['meta']=()=>{if(!MA){main.innerHTML=head('Meta Ads ainda não sincronizado
  const ents=mAgg(rows,keyf).sort((x,y)=>y.sp-x.sp);const ET=mTot(ents);
  const byAcc=acc.map(ac=>{const t=mTot(mAgg(rows.filter(r=>r[0]===ac),()=>1));return {ac,t,r:mReach(ac,'account',ac,a,b)}});
  const reachTxt=one?(byAcc[0].r?N(byAcc[0].r[0]):null):null;
- const st=MST||{};const tok=st.token||{};const fails=Object.values(st.accounts||{}).filter(x=>!x.ok);
+ const st=MST||{};const tok=st.token||{};const fails=Object.values(st.accounts||{}).filter(x=>!x.ok&&!x.pending);const pend=Object.values(st.accounts||{}).filter(x=>x.pending);
  const warn=[];if(fails.length)warn.push(`Sem atualização na última rodada: ${fails.map(x=>esc((x.name||x.id)+': '+(x.error||''))).join('; ')}. Os dados anteriores dessas contas foram mantidos.`);
+ if(pend.length)warn.push(`Acesso pendente em ${pend.length} conta(s) da lista: ${pend.map(x=>'act_'+esc(x.id)).join(', ')}. Elas entram no BI sozinhas quando o perfil do token tiver acesso a elas no Business Manager.`);
  if(tok.days_left!=null&&tok.days_left<=15)warn.push(`O token do Meta expira em ${tok.days_left} dias (${fD(tok.next_expiry-OFF)}). Gere um novo e atualize o segredo META_ACCESS_TOKEN para não interromper a coleta.`);
  if(cur.length>1)warn.push(`As contas selecionadas usam moedas diferentes (${esc(cur.join(', '))}). Valores em dinheiro não são somados.`);
  if(tz.length>1)warn.push(`As contas selecionadas usam fusos diferentes (${esc(tz.join(', '))}). Cada dia segue o fuso da sua conta.`);
@@ -641,7 +642,7 @@ VIEWS['meta']=()=>{if(!MA){main.innerHTML=head('Meta Ads ainda não sincronizado
  const rdQ=rdEnt.filter(d=>d.qa!=null).length,rdW=rdEnt.filter(d=>d.st==='won').length;
  // validação: último mês fechado
  const vm=addM(som(NOW),-1),ve=som(NOW);
- const valid=all.map(ac=>{const t=mTot(mAgg(mRows(vm,ve,[ac]),()=>1));const r=mReach(ac,'account',ac,vm,ve);const i=MA[ac].info||{};return `<tr><td><b>${esc(mName(ac))}</b><br><span class="sm mut">act_${esc(ac)} · ${esc(i.currency||'?')} · ${esc(i.timezone||'?')}</span></td><td class="n">${money(t.sp,i.currency)}</td><td class="n">${N(t.im)}</td><td class="n">${r?N(r[0]):'—'}</td><td class="n">${N(t.cl)}</td><td class="n">${N(t.lk)}</td><td class="n">${N(t.ld)}</td><td class="n">${N(t.mc)}</td><td>${i.ok===false||(st.accounts&&st.accounts[ac]&&!st.accounts[ac].ok)?'<span class="tag t-lost">falhou</span>':'<span class="tag t-won">acesso ok</span>'}</td></tr>`}).join('');
+ const valid=all.map(ac=>{const t=mTot(mAgg(mRows(vm,ve,[ac]),()=>1));const r=mReach(ac,'account',ac,vm,ve);const i=MA[ac].info||{};return `<tr><td><b>${esc(mName(ac))}</b><br><span class="sm mut">act_${esc(ac)} · ${esc(i.currency||'?')} · ${esc(i.timezone||'?')}</span></td><td class="n">${money(t.sp,i.currency)}</td><td class="n">${N(t.im)}</td><td class="n">${r?N(r[0]):'—'}</td><td class="n">${N(t.cl)}</td><td class="n">${N(t.lk)}</td><td class="n">${N(t.ld)}</td><td class="n">${N(t.mc)}</td><td>${st.accounts&&st.accounts[ac]&&st.accounts[ac].pending?'<span class="tag t-open">acesso pendente</span>':i.ok===false||(st.accounts&&st.accounts[ac]&&!st.accounts[ac].ok)?'<span class="tag t-lost">falhou</span>':'<span class="tag t-won">acesso ok</span>'}</td></tr>`}).join('');
  main.innerHTML=head(`${M(T.sp)} investidos no Meta em ${esc(plabel(a,b))}: ${N(T.ld)} leads e ${N(T.mc)} conversas`,`Última sincronização: ${st.at?esc(fDT(st.at-OFF)):'—'} · API ${esc(st.version||'')} · atribuição padrão de cada conta. <a href="${ACT_URL}" target="_blank" rel="noopener">Atualizar agora</a> (abre o GitHub: clique em Run workflow).`)+
   warn.map(w=>`<p class="note">${w}</p>`).join('')+
   `<div class="chips">${ex('all','Todas as contas')}${all.map(id=>ex(id,mName(id))).join('')}</div>
