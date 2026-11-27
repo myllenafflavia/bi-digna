@@ -1,0 +1,28 @@
+name: Sondar API RD Conversas
+
+# Rodada manual: Actions → Sondar API RD Conversas → Run workflow.
+# Só lê a API (GET) e imprime a estrutura das respostas no registro da rodada,
+# sem nomes, telefones ou textos de mensagens. Não grava nada no repositório.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  sondar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Instalar dependências
+        run: pip install --quiet requests jwcrypto
+      - name: Sondar a API
+        run: python -I qualificacao-leads/sondagem/sondagem_api_rd_conversas.py
+        env:
+          RD_CONVERSAS_TOKEN: ${{ secrets.RD_CONVERSAS_TOKEN }}
+          RD_CONVERSAS_JWK: ${{ secrets.RD_CONVERSAS_JWK }}
