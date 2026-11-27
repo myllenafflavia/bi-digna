@@ -625,7 +625,7 @@ VIEWS['meta']=()=>{if(!MA){main.innerHTML=head('Meta Ads ainda não sincronizado
  if(pend.length)warn.push(`Acesso pendente em ${pend.length} conta(s) da lista: ${pend.map(x=>'act_'+esc(x.id)).join(', ')}. Elas entram no BI sozinhas quando o perfil do token tiver acesso a elas no Business Manager.`);
  if(tok.days_left!=null&&tok.days_left<=15)warn.push(`O token do Meta expira em ${tok.days_left} dias (${fD(tok.next_expiry-OFF)}). Gere um novo e atualize o segredo META_ACCESS_TOKEN para não interromper a coleta.`);
  if(cur.length>1)warn.push(`As contas selecionadas usam moedas diferentes (${esc(cur.join(', '))}). Valores em dinheiro não são somados.`);
- if(tz.length>1)warn.push(`As contas selecionadas usam fusos diferentes (${esc(tz.join(', '))}). Cada dia segue o fuso da sua conta.`);
+ const tzOff=[...new Set(acc.map(x=>(MA[x].info||{}).tz_offset).filter(v=>v!=null))];if(tzOff.length>1)warn.push(`As contas selecionadas usam fusos diferentes (${esc(tz.join(', '))}). Cada dia segue o fuso da sua conta.`);
  const ex=(id,t)=>`<button class="chip ${id==='all'?(S.macc.size?'':'on'):(S.macc.has(id)?'on':'')}" data-macc="${esc(id)}">${esc(t)}</button>`;
  const cards=[['Investimento',M(T.sp),'gasto no período'],['Impressões',N(T.im),''],['Alcance',reachTxt,one?'pessoas únicas na conta':'não somável entre contas'],['Frequência',one&&byAcc[0].r&&byAcc[0].r[0]?nf1.format(byAcc[0].r[1]/byAcc[0].r[0]):null,'impressões ÷ alcance'],
   ['Cliques',N(T.cl),'todos os cliques'],['Cliques no link',N(T.lk),''],['CTR',PC(ratio(T.cl,T.im)),'cliques ÷ impressões'],['CPC',C?money(ratio(T.sp,T.cl),C):'—','investimento ÷ cliques'],['CPM',C?money(T.im?T.sp/T.im*1000:null,C):'—','por mil impressões'],
