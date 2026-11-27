@@ -171,7 +171,7 @@ async function tokenCheck() {
   try {
     const j = await call('/debug_token', { input_token: TOKEN });
     const d = j.data || {};
-    Object.assign(t, { valid: !!d.is_valid, type: d.type || null, expires_at: d.expires_at ? d.expires_at * 1000 : 0, data_access_expires_at: d.data_access_expires_at ? d.data_access_expires_at * 1000 : 0, ads_read: (d.scopes || []).includes('ads_read'), scopes_known: !!d.scopes });
+    Object.assign(t, { valid: !!d.is_valid, type: d.type || null, app_id: d.app_id || null, app_name: d.application || null, user_id: d.user_id || null, expires_at: d.expires_at ? d.expires_at * 1000 : 0, data_access_expires_at: d.data_access_expires_at ? d.data_access_expires_at * 1000 : 0, ads_read: (d.scopes || []).includes('ads_read'), scopes_known: !!d.scopes });
   } catch (e) {
     if (e.kind === 'token') return { ...t, valid: false, error: e.message };
     const me = await call('/me', { fields: 'id' }).catch(x => ({ error: x }));
@@ -218,9 +218,19 @@ async function main() {
     const s = status.accounts[acct] || (prev.accounts || {})[acct] || { id: acct };
     bundle.accounts[acct] = { info: s, days: st.days, lvl: st.lvl, names: st.names, periods: st.periods };
   }
+  const failed0 = Object.values(status.accounts).filter(a => !a.ok);
+  if (failed0.length) { // diagnóstico: quem é o token e quais contas ele enxerga
+    try {
+      const me = await call('/me', { fields: 'id,name' });
+      const acc = await all('/me/adaccounts', { fields: 'account_id,name,account_status', limit: 200 });
+      status.diagnostic = { user: me.name || me.id, visible_accounts: acc.map(a => ({ id: a.account_id, name: a.name })), allowed_visible: ALLOWED.filter(id => acc.some(a => a.account_id === id)) };
+      log('diagnóstico: token de', status.diagnostic.user, '| app', status.token.app_name || status.token.app_id, '| contas visíveis:', acc.length, '| permitidas visíveis:', status.diagnostic.allowed_visible.length);
+    } catch (e) { status.diagnostic = { error: e.message }; log('diagnóstico falhou:', e.message); }
+  }
   await writeJson(path.join(OUT, 'meta.json'), bundle);
   await writeJson(statusFile, status);
   const fail = Object.values(status.accounts).filter(a => !a.ok);
+
   if (fail.length) { console.log(`::error::${fail.length} conta(s) sem atualização: ${fail.map(a => a.id + ' (' + (a.error || '') + ')').join('; ')}`); process.exitCode = 1; }
   log('fim:', Object.values(status.accounts).filter(a => a.ok).length, 'de', ALLOWED.length, 'contas atualizadas');
 }
