@@ -410,6 +410,52 @@ def main():
             print(f"formato {formato}: {erro}")
 
 
+def rodada_4():
+    """Contatos antigos que voltam a conversar: testa os outros tipos de relatório."""
+    hoje = date.today()
+    ontem = hoje - timedelta(days=1)
+    novos = set()
+    try:
+        _, itens = itens_relatorio(ontem, hoje, limit=50, max_paginas=4)
+        novos = {i.get("id") for i in itens if i.get("id")}
+    except (ConsultaFalhou, PermissionError) as erro:
+        print(f"type=customers falhou: {erro}")
+    print(f"\n===== 8. Referência: contatos novos (type=customers) lidos: {len(novos)} =====")
+
+    for tipo in ("operators", "chatbots", "rejecteds", None):
+        rotulo = tipo or "sem type"
+        params = {"start_date": ontem.isoformat(), "end_date": hoje.isoformat(),
+                  "channel": "whatsapp", "page": 1, "limit": 50}
+        if tipo:
+            params["type"] = tipo
+        try:
+            resposta = get("/reports", params, base=BASE_V4)
+        except (ConsultaFalhou, PermissionError) as erro:
+            print(f"\n===== 8. type={rotulo} =====\nfalhou: {erro}")
+            continue
+        if isinstance(resposta, dict):
+            envelope = {k: (f"lista com {len(v)} itens" if isinstance(v, list) else v) for k, v in resposta.items()}
+            mostrar(f"8. type={rotulo} | envelope", envelope)
+        docs = resposta.get("docs") if isinstance(resposta, dict) else resposta
+        if not isinstance(docs, list) or not docs:
+            print(f"type={rotulo}: sem itens")
+            continue
+        mostrar(f"8. type={rotulo} | primeiro item", docs[0])
+        # Procura IDs de contato dentro dos itens e compara com os contatos novos.
+        ids = set()
+        for d in docs:
+            if not isinstance(d, dict):
+                continue
+            for campo in ("customer_id", "customer", "contact", "contact_id"):
+                v = d.get(campo)
+                if isinstance(v, dict):
+                    v = v.get("_id") or v.get("id")
+                if isinstance(v, str):
+                    ids.add(v)
+        print(f"type={rotulo}: IDs de contato encontrados nos itens = {len(ids)} | "
+              f"também na lista de novos = {len(ids & novos)} | fora dela = {len(ids - novos)}")
+
+
 if __name__ == "__main__":
-    main()
+    rodada_4()
     print("\nFim da sondagem.")
