@@ -197,7 +197,7 @@ const guessM=n=>/parque|jazig|cremat|cemit|ppaz/i.test(n)?'pp':/plano|wi-?fi|dig
 const normO=v=>{if(v==null)return 'Não informada';v=String(v).replace(/\s+/g,' ').trim();if(!v||/^desconhecid/i.test(v))return 'Não informada';return v.split('|').map(x=>{x=x.trim();return x.charAt(0).toUpperCase()+x.slice(1)}).join(' | ')};
 const guessEq=n=>/qualif|visita/i.test(n)?'qualificacao':/propost|apresent|or[cç]amento/i.test(n)?'proposta':/negocia|fechament/i.test(n)?'negociacao':/contato|abord|tentativa|conect|liga[cç]/i.test(n)?'abordagem':/entrada|novo|lead|inicial|base/i.test(n)?'entrada':'propria';
 let FUN=[],FI={},D=[],CI={},MOTRAW={},LISTS={};const CONT_DEALS=new Map();
-let cfg={qual:{},eq:{},marca:{},metas:{},orc:{},mbrand:{},metaGeral:{},mfunil:{}};let CFG_SRC='padrão';
+let cfg={qual:{},eq:{},marca:{},metas:{},orc:{},mbrand:{},metaGeral:{},mfunil:{},vendas:[],vendasDel:[]};let CFG_SRC='padrão';
 function loadData(bi){META=bi.meta;GEN=L(META.generated_at);HIST=L(META.track_start);DICT=bi.dict;
  FUN=bi.pipelines.map(p=>({id:p.id,n:p.name,st:p.stages.map(s=>s.name),m:'pd'}));FI=Object.fromEntries(FUN.map(f=>[f.id,f]));
  CI=Object.fromEntries(DICT.camp.map((n,i)=>[String(i),{n}]));
@@ -221,6 +221,13 @@ function applyBrand(){for(const f of FUN)f.m=cfg.marca[f.id]||'pd';for(const d o
 const saveCfg=()=>{try{localStorage.setItem('bi-digna-cfg-v2',JSON.stringify(cfg))}catch(e){}};
 function deriveQ(){for(const d of D){d.qa=null;d.qf=null;for(const e of d.h){const q=cfg.qual[e.f];if(q!=null&&q>=0&&e.s>=q){d.qa=e.t;d.qf=e.f;break}}
   if(d.qa==null&&d.st==='won'&&cfg.qual[d.cf]>=0){d.qa=d.ca;d.qf=d.cf}d.qi=!d.hh&&d.qa!=null}}
+/* vendas registradas fora do RD (lançadas pela equipe) */
+const VM_ORIG={meta:'Meta Ads',outra:'Outra origem','':'Origem não informada'};
+const vmList=()=>(cfg.vendas||[]).filter(v=>v&&v.d&&v.n>0&&!(cfg.vendasDel||[]).includes(v.id));
+const vmBlock=()=>['owner','origem','camp','etapa','motivo','praca'].filter(k=>S.f[k].size).length>0||(S.f.status.size&&!S.f.status.has('won'));
+function manual(a,b,fs){if(vmBlock())return {n:0,meta:0,list:[],blocked:true};const sa=iso(a),sb=iso(b-1);
+ const list=vmList().filter(v=>v.d>=sa&&v.d<=sb&&FI[v.f]&&(!S.f.marca.size||S.f.marca.has(FI[v.f].m))&&(!S.f.funil.size||S.f.funil.has(v.f))&&(!fs||fs.has(v.f)));
+ return {n:list.reduce((x,v)=>x+(+v.n||0),0),meta:list.filter(v=>v.o==='meta').reduce((x,v)=>x+(+v.n||0),0),list}}
 const meta=(f,k)=>Object.assign({q:0,v:0},cfg.metas[f+'|'+k]||{});
 const orc=(m,k)=>cfg.orc[m+'|'+k]||0;
 /* ================= estado ================= */
@@ -282,7 +289,7 @@ function K(a,b,asOf){const X=asOf||NOW;const sel=SEL(),ev=S.mode==='eventos';con
  const o=ev?sel.filter(op):ent.filter(op);
  const att=x=>x.filter(d=>d.cp);const lm=att(ent),qm=att(q),wm=att(w);const sp=metaSpendRD(a,b);const mo=x=>x.filter(d=>isMetaO(d.o)&&sp.fs&&d.fs.some(f=>sp.fs.has(f)));const lmo=mo(ent),qmo=mo(q),wmo=mo(w);const cost=n=>sp.v==null||!n?null:sp.v/n;
  return {a,b,ent,q,w,l,o,lm,qm,wm,leads:ent.length,cont:uniq(ent),qual:q.length,tq:ev?null:ratio(q.length,ent.length),and:o.length,vend:w.length,tv:ev?null:ratio(w.length,ent.length),perd:l.length,
-  lmo,qmo,wmo,inv:sp.v,why:sp.why,cpl:cost(lmo.length),cpq:cost(qmo.length),cmv:cost(wmo.length),flag:[],qinf:q.filter(d=>d.qi).length}}
+  lmo,qmo,wmo,inv:sp.v,why:sp.why,cpl:cost(lmo.length),cpq:cost(qmo.length),man:manual(a,b),cmv:cost(wmo.length+manual(a,b,sp.fs).meta),wmoT:wmo.length+manual(a,b,sp.fs).meta,flag:[],qinf:q.filter(d=>d.qi).length}}
 function buckets(a,b){let g=S.gran;const span=(b-a)/DAY;if(g==='hora'&&span>3)g='dia';if(g==='auto')g=span<=2?'hora':span<=35?'dia':span<=130?'semana':'mes';const out=[];
  if(g==='hora'){for(let t=a-(a%3600e3);t<b;t+=3600e3)out.push({a:Math.max(t,a),b:Math.min(t+3600e3,b),l:p2(new Date(t).getUTCHours())+'h'+(span>1?' '+fDs(t):'')})}
  else if(g==='dia'){for(let t=sod(a);t<b;t+=DAY)out.push({a:Math.max(t,a),b:Math.min(t+DAY,b),l:fDs(t)})}
@@ -400,15 +407,15 @@ VIEWS['visao-geral']=()=>{const [a,b]=range(),cr=crange(a,b);const k=K(a,b),c=cr
   ['qual','Leads qualificados',N(k.qual),ev?'qualificações no período':'dos negócios criados',k.qual,c&&c.qual],
   ['tq','Taxa de qualificação',ev?null:PC(k.tq),'qualificados ÷ negócios',k.tq,c&&c.tq,0,PC],
   ['and','Em andamento',N(k.and),ev?'abertos agora':'ainda abertos',k.and,c&&c.and],
-  ['vend','Vendas',N(k.vend),'negócios ganhos',k.vend,c&&c.vend],
-  ['tv','Conversão em vendas',ev?null:PC(k.tv),'ganhos ÷ negócios',k.tv,c&&c.tv,0,PC],
+  ['vend','Vendas',N(k.vend+k.man.n),k.man.n?N(k.vend)+' no RD + '+N(k.man.n)+' fora do RD':(k.man.blocked?'no RD; as de fora não se dividem por este filtro':'registradas no RD'),k.vend+k.man.n,c&&(c.vend+c.man.n)],
+  ['tv','Conversão em vendas',ev?null:PC(k.tv),'ganhos no RD ÷ negócios',k.tv,c&&c.tv,0,PC],
   ['perd','Perdas',N(k.perd),'negócios perdidos',k.perd,c&&c.perd,1],
   ['inv','Investimento em mídia',R(k.inv),k.inv==null?(k.why||''):'Meta Ads nos funis de venda · Google pendente',k.inv,c&&c.inv,0,RT],
   ['cpl','CPL',R(k.cpl),N(k.lmo.length)+' negócios com origem Meta',k.cpl,c&&c.cpl,1,RT],
   ['cpq','Custo por qualificado',R(k.cpq),N(k.qmo.length)+' qualificados com origem Meta',k.cpq,c&&c.cpq,1,RT],
-  ['cmv','Custo de mídia por venda',R(k.cmv),N(k.wmo.length)+' vendas com origem Meta',k.cmv,c&&c.cmv,1,RT]];
+  ['cmv','Custo de mídia por venda',R(k.cmv),N(k.wmoT)+' vendas com origem Meta'+(k.wmoT>k.wmo.length?' (inclui fora do RD)':''),k.cmv,c&&c.cmv,1,RT]];
  const bk=buckets(a,b);const sel=SEL();
- const ser=bk.out.map(x=>{const ent=sel.filter(d=>d.c>=x.a&&d.c<x.b);if(ev)return [ent.length,sel.filter(d=>d.qa!=null&&d.qa>=x.a&&d.qa<x.b).length,sel.filter(d=>d.st==='won'&&d.ca>=x.a&&d.ca<x.b).length];return [ent.length,ent.filter(d=>d.qa!=null).length,ent.filter(d=>d.st==='won').length]});
+ const ser=bk.out.map(x=>{const ent=sel.filter(d=>d.c>=x.a&&d.c<x.b);if(ev)return [ent.length,sel.filter(d=>d.qa!=null&&d.qa>=x.a&&d.qa<x.b).length,sel.filter(d=>d.st==='won'&&d.ca>=x.a&&d.ca<x.b).length+(bk.g==='hora'?0:manual(x.a,x.b).n)];return [ent.length,ent.filter(d=>d.qa!=null).length,ent.filter(d=>d.st==='won').length]});
  const cpqTxt=k.cpq!=null?`Custo por qualificado de ${R(k.cpq)}.`:'';
  const title=`${N(k.qual)} leads qualificados em ${esc(plabel(a,b))}`+(pq!=null?`, ${nf.format(Math.round(pq*100))}% da meta proporcional`:'');
  main.innerHTML=head(title,`${N(k.leads)} negócios entraram${k.tq!=null?' e '+PC(k.tq)+' já qualificaram':''}. ${cpqTxt} ${cr?'Comparação com '+esc(fD(cr[0]))+' a '+esc(fD(cr[1]-1))+(ev?'.':', medida na mesma idade dos negócios.'):''}`)+
@@ -564,6 +571,17 @@ VIEWS['detalhamento']=()=>{const [a,b]=range();const k=K(a,b);const L2={leads:['
 function histHtml(d){const hs=d.hh?`<ul class="tl">${d.h.map(e=>`<li>${fDT(e.t)} · ${esc(FI[e.f].n)} › ${esc(FI[e.f].st[e.s]||'')}${e.tr?' <b>(transferido, mesmo ID)</b>':''}</li>`).join('')}${d.ca?`<li>${fDT(d.ca)} · <b>${d.st==='won'?'Ganho':'Perdido'}</b>${d.st==='lost'?' · '+esc(d.mo||'Motivo não informado')+(d.mr&&cleanMot(d.mr)!==d.mr?' <span class="mut">(original: '+esc(d.mr)+')</span>':''):''}</li>`:''}</ul>`:`<p class="sm mut">Histórico de etapas indisponível: negócio criado antes de ${fD(HIST)}, quando o registro começou${d.h.length>1?'. Movimentações vistas desde então: '+d.h.slice(1).map(e=>esc(FI[e.f].st[e.s]||'')).join(' → '):''}. Etapa atual: ${esc(FI[d.cf].st[d.cs]||'')}.</p>`;
  const other=CONT_DEALS.get(d.cid).filter(x=>x!==d);return `<div class="grid g2"><div><h3>Jornada do negócio</h3>${hs}</div><div><h3>Outros negócios do mesmo contato</h3>${other.length?`<ul class="tl">${other.map(x=>`<li>${esc(x.id.slice(-8))} · ${esc(FI[x.cf].n)} · ${STL[x.st]} · criado ${fD(x.c)}</li>`).join('')}</ul>`:'<p class="sm mut">Nenhum outro negócio.</p>'}</div></div>`}
 
+function vmSection(){const L=vmList().slice().sort((x,y)=>y.d.localeCompare(x.d));const fs=FUN.filter(f=>/venda/i.test(f.n)).concat(FUN.filter(f=>!/venda/i.test(f.n)));
+ return `<div class="box flat" id="vm-box" style="grid-column:1/-1"><h2>Vendas fora do RD</h2><p class="mut sm">Vendas que a equipe fechou mas não registrou no RD. Elas somam nos cartões de vendas, no custo de mídia por venda e no Meta × RD, sempre identificadas. Não entram nas taxas de conversão, porque não estão ligadas a um negócio do RD.</p>
+ <div class="pager" style="justify-content:flex-start;margin:4px 0 12px">
+  <label class="sm">Data <input type="date" id="vm-d" class="datei" value="${iso(NOW)}" max="${iso(NOW)}"></label>
+  <label class="sm">Funil <select id="vm-f" class="sel">${fs.map(f=>`<option value="${esc(f.id)}">${esc(f.n)}</option>`).join('')}</select></label>
+  <label class="sm">Vendas <input type="number" id="vm-n" min="1" value="1" style="max-width:80px"></label>
+  <label class="sm">Origem <select id="vm-o" class="sel"><option value="meta">Meta Ads</option><option value="outra">Outra origem</option><option value="">Não sei</option></select></label>
+  <label class="sm">Observação <input type="text" id="vm-obs" maxlength="80" placeholder="opcional" style="max-width:200px"></label>
+  <button class="btn pr" id="vm-add">Adicionar</button></div>
+ <div class="scroll"><table class="stack"><thead><tr><th>Data</th><th>Funil</th><th class="n">Vendas</th><th>Origem</th><th>Observação</th><th></th></tr></thead><tbody>${L.map(v=>`<tr><td>${esc(fD(fromIso(v.d)))}</td><td>${esc(FI[v.f]?FI[v.f].n:v.f)}</td><td class="n">${N(v.n)}</td><td>${esc(VM_ORIG[v.o||''])}</td><td>${esc(v.obs||'')}</td><td><button class="lnk" data-vmdel="${esc(v.id)}">Remover</button></td></tr>`).join('')||'<tr><td colspan="6" class="mut">Nenhuma venda lançada.</td></tr>'}</tbody></table></div>
+ <p class="sm mut" style="margin-top:8px">Os lançamentos ficam salvos neste navegador na hora. Para o time inteiro ver, clique em <b>Copiar configuração</b> no topo desta tela e cole em <a href="https://github.com/myllenafflavia/bi-digna/edit/main/config.json" target="_blank" rel="noopener">config.json no GitHub</a>, ou me mande os números que eu publico.</p></div>`}
 VIEWS['configuracoes']=()=>{const mk=S.cfgM;const months=[];for(let t=addM(som(NOW),-12);t<=addM(som(NOW),12);t=addM(t,1))months.push(ym(t));
  main.innerHTML=head('Configurações','As mudanças valem na hora neste navegador. Para valer para todo o time, copie a configuração e cole no arquivo config.json do repositório.')+
  `<p><button class="btn pr" id="cfgcopy">Copiar configuração (config.json)</button> <button class="btn" id="reset">Voltar ao config.json publicado</button> <span class="sm mut" id="cfgmsg" aria-live="polite">Origem atual: ${esc(CFG_SRC)}.</span></p>
@@ -571,6 +589,7 @@ VIEWS['configuracoes']=()=>{const mk=S.cfgM;const months=[];for(let t=addM(som(N
  <p class="sm" style="margin:6px 0 10px"><label>Meta geral de leads qualificados, todas as operações: <input type="number" min="0" data-mgeral="1" value="${(cfg.metaGeral||{})[mk]||''}" placeholder="—" aria-label="Meta geral de qualificados"></label></p>
  <div class="scroll"><table><thead><tr><th>Funil</th><th class="n">Qualificados</th><th class="n">Vendas</th></tr></thead><tbody>${FUN.map(f=>{const m=meta(f.id,mk);return `<tr><td>${esc(f.n)}<br><span class="sm mut">${esc(MARCAS[f.m])}</span></td><td class="n"><input type="number" min="0" data-meta="${esc(f.id)}|q" value="${m.q||''}" placeholder="—" aria-label="Meta de qualificados"></td><td class="n"><input type="number" min="0" data-meta="${esc(f.id)}|v" value="${m.v||''}" placeholder="—" aria-label="Meta de vendas"></td></tr>`}).join('')}</tbody></table></div>
  <h3 style="margin-top:14px">Orçamento de mídia</h3><table><tbody>${Object.entries(MARCAS).map(([m,n])=>`<tr><td>${n}</td><td class="n"><input type="number" min="0" step="100" data-orc="${m}" value="${orc(m,mk)||''}" placeholder="—" aria-label="Orçamento ${n}" style="max-width:140px"></td></tr>`).join('')}</tbody></table></div>
+ ${vmSection()}
  <div class="box flat"><h2>Funis: operação e qualificação</h2><p class="mut sm">Funis carregados do RD. O negócio é qualificado no primeiro ingresso na etapa escolhida ou em etapa posterior, e conta uma única vez.</p>
  <div class="scroll"><table class="stack"><thead><tr><th>Funil</th><th>Operação</th><th>Marco de qualificação</th></tr></thead><tbody>${FUN.map(f=>`<tr><td>${esc(f.n)}</td><td><select data-marca="${esc(f.id)}" aria-label="Operação">${Object.entries(MARCAS).map(([v,t])=>`<option value="${v}" ${f.m===v?'selected':''}>${t}</option>`).join('')}</select></td><td><select data-qual="${esc(f.id)}" aria-label="Marco de qualificação"><option value="-1" ${cfg.qual[f.id]<0?'selected':''}>Sem marco neste funil</option>${f.st.map((s,i)=>`<option value="${i}" ${cfg.qual[f.id]===i?'selected':''}>${esc(s)}</option>`).join('')}</select></td></tr>`).join('')}</tbody></table></div></div></div>
  ${MA?`<div class="box cfg" style="margin-top:14px"><h2>Contas do Meta</h2><p class="mut sm">Lista permitida no servidor. O funil define onde o investimento entra nas telas do RD e quais negócios entram nos custos por negócio, qualificado e venda. Contas fora do RD só aparecem na aba Meta Ads.</p><div class="scroll"><table class="stack"><thead><tr><th>Conta</th><th>Moeda · fuso</th><th>Funil no RD</th></tr></thead><tbody>${mAccts().map(id=>`<tr><td>${esc(mName(id))}<br><span class="sm mut">act_${esc(id)}</span></td><td>${esc(((MA[id].info||{}).currency||'?')+' · '+((MA[id].info||{}).timezone||'?'))}</td><td><select data-mfunil="${esc(id)}" aria-label="Funil no RD"><option value="" ${mFun(id)?'':'selected'}>Fora do RD</option>${FUN.map(f=>`<option value="${esc(f.id)}" ${mFun(id)===f.id?'selected':''}>${esc(f.n)}</option>`).join('')}</select></td></tr>`).join('')}</tbody></table></div></div>`:''}
@@ -641,7 +660,7 @@ VIEWS['meta']=()=>{if(!MA){main.innerHTML=head('Meta Ads ainda não sincronizado
  // Meta × RD
  const rdAcc=acc.filter(x=>mFun(x));const rdF=new Set(rdAcc.map(mFun));
  const rdEnt=D.filter(d=>d.c>=a&&d.c<b&&d.fs.some(f=>rdF.has(f))&&isMetaO(d.o));const rdSp=mTot(mAgg(mRows(a,b,rdAcc),()=>1)).sp;const rdLd=mTot(mAgg(mRows(a,b,rdAcc),()=>1)).ld;
- const rdQ=rdEnt.filter(d=>d.qa!=null).length,rdW=rdEnt.filter(d=>d.st==='won').length;
+ const rdQ=rdEnt.filter(d=>d.qa!=null).length,rdW0=rdEnt.filter(d=>d.st==='won').length,rdWm=manual(a,b,rdF).meta,rdW=rdW0+rdWm;
  // validação: último mês fechado
  const vm=addM(som(NOW),-1),ve=som(NOW);
  const valid=all.map(ac=>{const t=mTot(mAgg(mRows(vm,ve,[ac]),()=>1));const r=mReach(ac,'account',ac,vm,ve);const i=MA[ac].info||{};return `<tr><td><b>${esc(mName(ac))}</b><br><span class="sm mut">act_${esc(ac)} · ${esc(i.currency||'?')} · ${esc(i.timezone||'?')}</span></td><td class="n">${money(t.sp,i.currency)}</td><td class="n">${N(t.im)}</td><td class="n">${r?N(r[0]):'—'}</td><td class="n">${N(t.cl)}</td><td class="n">${N(t.lk)}</td><td class="n">${N(t.ld)}</td><td class="n">${N(t.mc)}</td><td>${st.accounts&&st.accounts[ac]&&st.accounts[ac].pending?'<span class="tag t-open">acesso pendente</span>':i.ok===false||(st.accounts&&st.accounts[ac]&&!st.accounts[ac].ok)?'<span class="tag t-lost">falhou</span>':'<span class="tag t-won">acesso ok</span>'}</td></tr>`}).join('');
@@ -656,7 +675,7 @@ VIEWS['meta']=()=>{if(!MA){main.innerHTML=head('Meta Ads ainda não sincronizado
   <div class="box"><div class="bh"><div><h2>Detalhamento</h2><p class="mut sm">Clique numa campanha para ver os conjuntos, e num conjunto para ver os anúncios.</p></div></div>${crumbs}
   <div class="scroll"><table>${thead}<tbody>${ents.slice(0,300).map(o=>trow(o,'',lab(o),o.key,o.ac)).join('')||'<tr><td colspan="14" class="mut">Sem veiculação no período.</td></tr>'}${ents.length?trow(ET,'tot','Total ('+ents.length+')'):''}</tbody></table></div></div>
   <div class="box"><h2>Meta × RD CRM</h2><p class="mut sm">Leads do Meta são registros da plataforma. Negócios, qualificados e vendas vêm do RD, com origem Facebook, Instagram ou Meta Ads, só nos funis ligados às contas selecionadas (${esc([...rdF].map(f=>FI[f].n).join(', ')||'nenhum')}). Os dois números medem coisas diferentes e não devem bater.</p>
-  <div class="cards">${[['Leads registrados no Meta',N(rdLd)],['Negócios no RD (origem Meta)',N(rdEnt.length)],['Qualificados no RD',N(rdQ)],['Vendas no RD',N(rdW)],['Investimento dessas contas',C?money(rdSp,C):'—'],['Custo por negócio no RD',C?money(ratio(rdSp,rdEnt.length),C):'—'],['Custo por qualificado no RD',C?money(ratio(rdSp,rdQ),C):'—'],['Custo de mídia por venda',C?money(ratio(rdSp,rdW),C):'—']].map(([l,v])=>`<div class="card"><span class="l">${l}</span><span class="v">${esc(v)}</span></div>`).join('')}</div>
+  <div class="cards">${[['Leads registrados no Meta',N(rdLd)],['Negócios no RD (origem Meta)',N(rdEnt.length)],['Qualificados no RD',N(rdQ)],['Vendas (origem Meta)',N(rdW)+(rdWm?' ('+N(rdW0)+' no RD + '+N(rdWm)+' fora)':'')],['Investimento dessas contas',C?money(rdSp,C):'—'],['Custo por negócio no RD',C?money(ratio(rdSp,rdEnt.length),C):'—'],['Custo por qualificado no RD',C?money(ratio(rdSp,rdQ),C):'—'],['Custo de mídia por venda',C?money(ratio(rdSp,rdW),C):'—']].map(([l,v])=>`<div class="card"><span class="l">${l}</span><span class="v">${esc(v)}</span></div>`).join('')}</div>
   <p class="sm mut">Contas e funis: ${all.map(x=>esc(mName(x))+' → '+(mFun(x)?esc(FI[mFun(x)].n):'fora do RD')).join(' · ')}. Ajuste em Configurações. Qualificados e vendas seguem os negócios criados no período, até a última atualização.</p></div>
   <div class="box"><h2>Validação com o Gerenciador de Anúncios</h2><p class="mut sm">Totais de ${MES[new Date(vm).getUTCMonth()]} de ${new Date(vm).getUTCFullYear()} (mês fechado). Para comparar, use no Gerenciador as mesmas datas (01 a ${fDs(ve-DAY)}), o nível de conta, o fuso da conta e a atribuição padrão. O alcance mensal só aparece depois que a rodada que consulta esse mês concluir.</p>
   <div class="scroll"><table class="stack"><thead><tr><th>Conta</th><th class="n">Investimento</th><th class="n">Impressões</th><th class="n">Alcance</th><th class="n">Cliques</th><th class="n">Cliques no link</th><th class="n">Leads</th><th class="n">Conversas</th><th>Acesso</th></tr></thead><tbody>${valid}</tbody></table></div>
@@ -681,8 +700,11 @@ main.addEventListener('click',ev=>{const t=ev.target;
  if(t.id==='csv'){const rows=VIEWS._rows||[];const H=['id_negocio','link_rd','marca','funil_atual','etapa_atual','status','criado_em','qualificado_em','fechado_em','origem','campanha','responsavel','motivo_perda','praca'];
   const q=v=>'"'+String(v==null?'':v).replace(/"/g,'""')+'"';const txt=[H.join(';')].concat(rows.map(d=>[d.id,'https://crm.rdstation.com/app/deals/'+d.id,MARCAS[d.m],FI[d.cf].n,FI[d.cf].st[d.cs],STL[d.st],iso(d.c),d.qa?iso(d.qa):'',d.ca?iso(d.ca):'',d.o,d.cp?CI[d.cp].n:'',d.ow,d.st==='lost'?(d.mo||'Motivo não informado'):'',d.pr].map(q).join(';'))).join('\n');
   copy(txt,$('#csvmsg'),' CSV copiado: '+rows.length+' linhas, separado por ponto e vírgula.');return}
+ if(t.id==='vm-add'){const d=$('#vm-d').value,f=$('#vm-f').value,n=Math.round(+$('#vm-n').value||0),o=$('#vm-o').value,obs=$('#vm-obs').value.trim().slice(0,80);
+  if(!fromIso(d)||!n||n<1){$('#vm-n').focus();return}cfg.vendas=(cfg.vendas||[]).concat([{id:'v'+Date.now().toString(36)+Math.random().toString(36).slice(2,6),d,f,n,o,obs}]);edited();SELC=null;renderView();return}
+ const vd=t.closest('[data-vmdel]');if(vd){const id=vd.dataset.vmdel;cfg.vendas=(cfg.vendas||[]).filter(v=>v.id!==id);cfg.vendasDel=[...new Set([...(cfg.vendasDel||[]),id])];edited();SELC=null;renderView();return}
  if(t.id==='cfgcopy'){copy(JSON.stringify(cfg,null,2),$('#cfgmsg'),' Copiado. Cole no arquivo config.json do repositório e salve.');return}
- if(t.id==='reset'){try{localStorage.removeItem('bi-digna-cfg-v2')}catch(e){}cfg=JSON.parse(JSON.stringify(REPO_CFG||{qual:{},eq:{},marca:{},metas:{},orc:{}}));for(const k of ['qual','eq','marca','metas','orc','mbrand','metaGeral','mfunil'])cfg[k]=cfg[k]||{};CFG_SRC='config.json publicado';defaults();applyBrand();deriveQ();refresh();return}});
+ if(t.id==='reset'){try{localStorage.removeItem('bi-digna-cfg-v2')}catch(e){}cfg=JSON.parse(JSON.stringify(REPO_CFG||{qual:{},eq:{},marca:{},metas:{},orc:{}}));for(const k of ['qual','eq','marca','metas','orc','mbrand','metaGeral','mfunil'])cfg[k]=cfg[k]||{};cfg.vendas=cfg.vendas||[];cfg.vendasDel=cfg.vendasDel||[];CFG_SRC='config.json publicado';defaults();applyBrand();deriveQ();refresh();return}});
 function copy(txt,msg,ok){try{navigator.clipboard.writeText(txt).then(()=>{msg.textContent=ok},()=>{msg.textContent=' O navegador bloqueou a cópia.'})}catch(e){msg.textContent=' O navegador bloqueou a cópia.'}}
 let dqT=null;
 main.addEventListener('input',ev=>{const t=ev.target;if(t.id==='dq'){clearTimeout(dqT);dqT=setTimeout(()=>{S.dq=t.value;S.dpage=0;renderView();const n=$('#dq');if(n){n.focus();n.setSelectionRange(n.value.length,n.value.length)}},250)}});
@@ -707,7 +729,7 @@ async function boot(){main.innerHTML='<p class="mut" style="padding:40px 0">Carr
   main.innerHTML=head('Aguardando a primeira sincronização com o RD CRM',(st&&st.ok===false?'A última tentativa falhou: '+esc(st.message||'erro desconhecido')+'. ':'')+'Configure o segredo RD_CRM_TOKEN no repositório e rode a ação "Sincronizar RD CRM" em Actions. O passo a passo está no README.');return}
  loadData(bi);MIND=sod(Math.min(...D.map(d=>d.c).slice(0,1),D.reduce((m,d)=>Math.min(m,d.c),Infinity)));
  let loc=null;try{loc=JSON.parse(localStorage.getItem('bi-digna-cfg-v2')||'null')}catch(e){}
- const base=loc||rc;if(base)for(const k of ['qual','eq','marca','metas','orc','mbrand'])cfg[k]=Object.assign({},base[k]||{});cfg.metaGeral=Object.assign({},rc&&rc.metaGeral||{},loc&&loc.metaGeral||{});cfg.metas=Object.assign({},rc&&rc.metas||{},loc&&loc.metas||{});cfg.mfunil=Object.assign({},rc&&rc.mfunil||{},loc&&loc.mfunil||{});CFG_SRC=loc?'editada neste navegador':rc?'config.json publicado':'padrão sugerido pelo nome das etapas';
+ const base=loc||rc;if(base)for(const k of ['qual','eq','marca','metas','orc','mbrand'])cfg[k]=Object.assign({},base[k]||{});cfg.metaGeral=Object.assign({},rc&&rc.metaGeral||{},loc&&loc.metaGeral||{});cfg.metas=Object.assign({},rc&&rc.metas||{},loc&&loc.metas||{});cfg.mfunil=Object.assign({},rc&&rc.mfunil||{},loc&&loc.mfunil||{});{const byId=new Map();for(const v of [...(rc&&rc.vendas||[]),...(loc&&loc.vendas||[])])if(v&&v.id)byId.set(v.id,v);cfg.vendas=[...byId.values()];cfg.vendasDel=[...new Set([...(rc&&rc.vendasDel||[]),...(loc&&loc.vendasDel||[])])]}CFG_SRC=loc?'editada neste navegador':rc?'config.json publicado':'padrão sugerido pelo nome das etapas';
  defaults();applyBrand();deriveQ();
  addEventListener('hashchange',()=>{route();window.scrollTo(0,0)});route();
  setInterval(()=>{NOW=Date.now()-OFF},60e3)}
