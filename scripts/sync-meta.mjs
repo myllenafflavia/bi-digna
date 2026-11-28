@@ -154,6 +154,12 @@ async function syncAccount(acct, info) {
   st.fetchedUntil = today; // dias que saírem da janela já foram buscados em definitivo
   log(info.name, 'últimos', REPROC, 'dias:', n, 'linhas');
   st.updated_at = Date.now(); await writeJson(file, st);
+  // objetivo e status de cada campanha (classificação de captação no painel)
+  try {
+    const cs = await all(`/act_${acct}/campaigns`, { fields: 'id,name,objective,effective_status', limit: 500 });
+    st.cobj = Object.fromEntries(cs.map(c => [c.id, { o: c.objective || null, s: c.effective_status || null }]));
+    for (const c of cs) if (!st.names.c[c.id]) st.names.c[c.id] = c.name;
+  } catch (e) { if (e.kind === 'token') throw e; log(info.name, 'objetivos das campanhas não atualizados:', e.message); }
   // alcance por período (não é somável: consultado já no nível e intervalo exibidos)
   const wk = addD(today, -((new Date(parseD(today)).getUTCDay() + 6) % 7));
   const want = { w: [wk, today], '7d': [addD(today, -6), today], '30d': [addD(today, -29), today], '90d': [addD(today, -89), today], ytd: [today.slice(0, 4) + '-01-01', today] };
@@ -220,7 +226,7 @@ async function main() {
   for (const acct of ALLOWED) {
     const st = await readJson(path.join(STORE, acct + '.json'), null); if (!st) continue;
     const s = status.accounts[acct] || (prev.accounts || {})[acct] || { id: acct };
-    bundle.accounts[acct] = { info: s, days: st.days, lvl: st.lvl, names: st.names, periods: st.periods };
+    bundle.accounts[acct] = { info: s, days: st.days, lvl: st.lvl, names: st.names, periods: st.periods, cobj: st.cobj || {} };
   }
   const failed0 = Object.values(status.accounts).filter(a => !a.ok);
   if (failed0.length) { // diagnóstico: quem é o token e quais contas ele enxerga
