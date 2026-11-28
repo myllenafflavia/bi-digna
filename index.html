@@ -282,6 +282,8 @@ function passD(d){const f=S.f;
  if(f.praca.size&&!f.praca.has(d.pr))return false;return true}
 const SEL=()=>SELC||(SELC=D.filter(passD));
 const uniq=a=>new Set(a.map(d=>d.cid)).size;
+const qualScope=()=>(S.f.funil.size||S.f.marca.size)?null:metaScope();
+const scopeName=sc=>sc?[...sc].map(f=>FI[f]?FI[f].n:f).join(', '):'funis selecionados';
 function K(a,b,asOf){const X=asOf||NOW;const sel=SEL(),ev=S.mode==='eventos';const ent=sel.filter(d=>d.c>=a&&d.c<b);
  const qd=d=>d.qa!=null&&d.qa<X,cl=(d,st)=>d.st===st&&d.ca<X,op=d=>d.c<X&&!(d.ca!=null&&d.ca<X);
  const q=ev?sel.filter(d=>d.qa!=null&&d.qa>=a&&d.qa<b):ent.filter(qd);
@@ -289,7 +291,8 @@ function K(a,b,asOf){const X=asOf||NOW;const sel=SEL(),ev=S.mode==='eventos';con
  const l=ev?sel.filter(d=>d.st==='lost'&&d.ca>=a&&d.ca<b):ent.filter(d=>cl(d,'lost'));
  const o=ev?sel.filter(op):ent.filter(op);
  const att=x=>x.filter(d=>d.cp);const lm=att(ent),qm=att(q),wm=att(w);const sp=metaSpendRD(a,b);const mo=x=>x.filter(d=>isMetaO(d.o)&&sp.fs&&d.fs.some(f=>sp.fs.has(f)));const lmo=mo(ent),qmo=mo(q),wmo=mo(w);const cost=n=>sp.v==null||!n?null:sp.v/n;
- return {a,b,ent,q,w,l,o,lm,qm,wm,leads:ent.length,cont:uniq(ent),qual:q.length,tq:ev?null:ratio(q.length,ent.length),and:o.length,vend:w.length,tv:ev?null:ratio(w.length,ent.length),perd:l.length,
+ const qs=qualScope();const qS=qs?q.filter(d=>qs.has(d.qf)):q;const eS=qs?ent.filter(d=>d.fs.some(f=>qs.has(f))):ent;const qMn=manual(a,b,qs).n;
+ return {a,b,ent,q,w,l,o,lm,qm,wm,qs,qS,qMn,leads:ent.length,cont:uniq(ent),qual:qS.length+qMn,qualRD:qS.length,tq:ev?null:ratio(qS.length,eS.length),and:o.length,vend:w.length,tv:ev?null:ratio(w.length,ent.length),perd:l.length,
   lmo,qmo,wmo,inv:sp.v,why:sp.why,cpl:cost(lmo.length),cpq:cost(qmo.length),man:manual(a,b),cmv:cost(wmo.length+manual(a,b,sp.fs).meta),wmoT:wmo.length+manual(a,b,sp.fs).meta,flag:[],qinf:q.filter(d=>d.qi).length}}
 function buckets(a,b){let g=S.gran;const span=(b-a)/DAY;if(g==='hora'&&span>3)g='dia';if(g==='auto')g=span<=2?'hora':span<=35?'dia':span<=130?'semana':'mes';const out=[];
  if(g==='hora'){for(let t=a-(a%3600e3);t<b;t+=3600e3)out.push({a:Math.max(t,a),b:Math.min(t+3600e3,b),l:p2(new Date(t).getUTCHours())+'h'+(span>1?' '+fDs(t):'')})}
@@ -304,11 +307,12 @@ function metaPer(a,b,kind){let s=0;for(let t=som(a);t<b;t=addM(t,1)){const e=add
 function metaScope(){if(noFilt()&&Object.values(cfg.metaGeral||{}).some(v=>v>0))return null;const fs=new Set;for(const [k,v] of Object.entries(cfg.metas||{}))if(v&&v.q>0)fs.add(k.split('|')[0]);const vis=new Set(visFun().map(f=>f.id));const out=new Set([...fs].filter(f=>vis.has(f)));return out.size?out:null}
 const qMan=(t,e)=>manual(t,e,metaScope()).n;
 const TETO='Teto: se alguma venda lançada for de um lead que já está qualificado no RD, ela conta duas vezes. O valor certo fica entre os dois números.';
+const qAll=(t,e)=>qCount(t,e)+qMan(t,e);
 const qCount=(t,e)=>{const sc=metaScope();return SEL().filter(d=>d.qa!=null&&d.qa>=t&&d.qa<e&&(!sc||sc.has(d.qf))).length};
 const scopeLabel=()=>{const sc=metaScope();return sc?[...sc].map(f=>FI[f]?FI[f].n:f).join(', '):'todas as operações'};
 const geralNote=()=>!noFilt()&&Object.keys(cfg.metaGeral||{}).length?'<p class="sm mut">A meta geral vale para todas as operações juntas, sem filtros. Com filtros, aparecem só as metas cadastradas por funil.</p>':'';
 function ritmo(){const t=som(NOW),e=addM(t,1),dm=(e-t)/DAY,el=(NOW-t)/DAY;const k=ym(NOW);const mt=metaMes(k,'q');if(!mt)return null;
- const q=qCount(t,NOW);const proj=q/el*dm;const falta=Math.max(0,mt-q);const rest=Math.max(1,Math.ceil((e-NOW)/DAY));
+ const q=qAll(t,NOW);const proj=q/el*dm;const falta=Math.max(0,mt-q);const rest=Math.max(1,Math.ceil((e-NOW)/DAY));
  return {k,mt,q,proj,falta,rest,porDia:falta/rest,ritmo:q/el,el,dm}}
 
 /* ================= gráficos ================= */
@@ -407,8 +411,8 @@ VIEWS['visao-geral']=()=>{const [a,b]=range(),cr=crange(a,b);const k=K(a,b),c=cr
  const cards=[
   ['leads','Leads entrantes',N(k.leads),'negócios criados',k.leads,c&&c.leads],
   ['cont','Contatos únicos',N(k.cont),'pessoas distintas',k.cont,c&&c.cont],
-  ['qual','Leads qualificados',N(k.qual),ev?'qualificações no RD':'dos negócios criados, no RD',k.qual,c&&c.qual],
-  ['tq','Taxa de qualificação',ev?null:PC(k.tq),'qualificados ÷ negócios',k.tq,c&&c.tq,0,PC],
+  ['qual','Leads qualificados',N(k.qual),(k.qs?scopeName(k.qs):(ev?'qualificações no período':'dos negócios criados'))+(k.qMn?' · inclui '+N(k.qMn)+' vendas lançadas fora do CRM':''),k.qual,c&&c.qual],
+  ['tq','Taxa de qualificação',ev?null:PC(k.tq),k.qs?'qualificados ÷ negócios, '+scopeName(k.qs):'qualificados ÷ negócios',k.tq,c&&c.tq,0,PC],
   ['and','Em andamento',N(k.and),ev?'abertos agora':'ainda abertos',k.and,c&&c.and],
   ['vend','Vendas',N(k.vend+k.man.n),k.man.n?N(k.vend)+' no RD + '+N(k.man.n)+' fora do RD':(k.man.blocked?'no RD; as de fora não se dividem por este filtro':'registradas no RD'),k.vend+k.man.n,c&&(c.vend+c.man.n)],
   ['tv','Conversão em vendas',ev?null:PC(k.tv),'ganhos no RD ÷ negócios',k.tv,c&&c.tv,0,PC],
@@ -421,9 +425,9 @@ VIEWS['visao-geral']=()=>{const [a,b]=range(),cr=crange(a,b);const k=K(a,b),c=cr
  const ser=bk.out.map(x=>{const ent=sel.filter(d=>d.c>=x.a&&d.c<x.b);if(ev)return [ent.length,sel.filter(d=>d.qa!=null&&d.qa>=x.a&&d.qa<x.b).length,sel.filter(d=>d.st==='won'&&d.ca>=x.a&&d.ca<x.b).length+(bk.g==='hora'?0:manual(x.a,x.b).n)];return [ent.length,ent.filter(d=>d.qa!=null).length,ent.filter(d=>d.st==='won').length]});
  const cpqTxt=k.cpq!=null?`Custo por qualificado de ${R(k.cpq)}.`:'';
  const title=`${N(k.qual)} leads qualificados em ${esc(plabel(a,b))}`+(pq!=null?`, ${nf.format(Math.round(pq*100))}% da meta proporcional`:'');
- main.innerHTML=head(title,`${N(k.leads)} negócios entraram${k.tq!=null?' e '+PC(k.tq)+' já qualificaram':''}. ${cpqTxt} ${cr?'Comparação com '+esc(fD(cr[0]))+' a '+esc(fD(cr[1]-1))+(ev?'.':', medida na mesma idade dos negócios.'):''}`)+
+ main.innerHTML=head(title,`${N(k.leads)} negócios entraram em todos os funis${k.tq!=null?'; '+PC(k.tq)+' dos negócios '+(k.qs?'de '+esc(scopeName(k.qs)):'')+' já qualificaram':''}. ${cpqTxt} ${cr?'Comparação com '+esc(fD(cr[0]))+' a '+esc(fD(cr[1]-1))+(ev?'.':', medida na mesma idade dos negócios.'):''}`)+
 
-  `<div class="cards">${cards.map(([id,l,v,s,cur,cmp,inv,fm])=>`<button class="card" id="k-${id}" data-drill="${id}" title="Abrir negócios que compõem o número"><span class="l">${l}</span><span class="v ${v==null?'na':''}">${v==null?(id==='tq'||id==='tv'?'Disponível na visão por entrada':'Indisponível'):esc(v)}</span>${id==='qual'&&k.man.n?`<span class="vx" title="${esc(TETO)}">+ ${N(k.man.n)} vendas fora do CRM = <b>${N(k.qual+k.man.n)}</b></span>`:''}<span class="s">${esc(s)}</span>${cr&&v!=null?dlt(cur,cmp,inv,fm||N):''}</button>`).join('')}</div>`+
+  `<div class="cards">${cards.map(([id,l,v,s,cur,cmp,inv,fm])=>`<button class="card" id="k-${id}" data-drill="${id}" title="Abrir negócios que compõem o número"><span class="l">${l}</span><span class="v ${v==null?'na':''}">${v==null?(id==='tq'||id==='tv'?'Disponível na visão por entrada':'Indisponível'):esc(v)}</span><span class="s">${esc(s)}</span>${cr&&v!=null?dlt(cur,cmp,inv,fm||N):''}</button>`).join('')}</div>`+
   `<div class="grid g2"><div class="box flat" id="ov-evo"><div class="bh"><div><h2>Entrada, qualificação e vendas</h2><p class="mut sm">${ev?'Eventos ocorridos em cada intervalo':'Agrupado pela data de entrada do negócio; conversões contadas até a última atualização'}</p></div>
    <div class="seg" role="group" aria-label="Granularidade">${['auto','hora','dia','semana','mes'].map(g=>`<button data-gran="${g}" class="${S.gran===g?'on':''}">${g==='auto'?'Auto':g==='mes'?'Mês':g[0].toUpperCase()+g.slice(1)}</button>`).join('')}</div></div>
    ${leg([['Leads entrantes','var(--grey)'],['Qualificados','var(--blue)',1],['Vendas','var(--green)',1]])}<div class="fig" id="f-evo"></div></div>
@@ -436,23 +440,22 @@ function campPanel(a,b){if(!MA)return '';const accs=mAccts().filter(id=>{const f
  if(!ag.length)return '';const tin=ag.filter(o=>o.cl.inc).reduce((x,o)=>x+o.sp,0),tall=ag.reduce((x,o)=>x+o.sp,0);const C=mCur(accs)[0]||'BRL';
  return `<div class="box flat" id="ov-camp" style="grid-column:1/-1"><div class="bh"><div><h2>Campanhas consideradas no investimento</h2><p class="mut sm">${esc(money(tin,C))} de ${esc(money(tall,C))} gastos no Meta no período entram nos custos. Ficam de fora vagas, eventos, posts impulsionados e o que não tem objetivo de captação. Clique em Incluir ou Excluir para corrigir.</p></div></div>
  <div class="scroll"><table class="stack"><thead><tr><th>Campanha</th><th>Conta</th><th>Objetivo no Meta</th><th class="n">Investimento</th><th class="n">Leads Meta</th><th class="n">Conversas</th><th>Situação</th><th></th></tr></thead><tbody>${ag.map(o=>`<tr><td>${esc(o.h.cn)}</td><td class="sm">${esc(mName(o.ac))}</td><td class="sm">${esc(o.cl.obj?(OBJ_PT[o.cl.obj]||o.cl.obj):'—')}</td><td class="n">${esc(money(o.sp,C))}</td><td class="n">${N(o.ld)}</td><td class="n">${N(o.mc)}</td><td>${o.cl.inc?'<span class="tag t-won">considerada</span>':'<span class="tag t-lost">fora</span>'}<br><span class="sm mut">${esc(o.cl.why)}</span></td><td><button class="lnk" data-mcamp="${esc(o.h.c)}" data-mset="${o.cl.inc?'out':'in'}">${o.cl.inc?'Excluir':'Incluir'}</button>${o.cl.man?`<br><button class="lnk" data-mcamp="${esc(o.h.c)}" data-mset="">Voltar à regra</button>`:''}</td></tr>`).join('')}</tbody></table></div></div>`}
-function metaBlock(a,b){const qe=qCount(a,b);const qm=qMan(a,b);const mq=metaPer(a,b,'q');
+function metaBlock(a,b){const qm=qMan(a,b);const qe=qCount(a,b)+qm;const mq=metaPer(a,b,'q');
  if(!mq)return '<p class="mut">Sem metas cadastradas para a seleção.</p>'+geralNote();const p=qe/mq;const r=a<=som(NOW)+DAY&&b>=NOW-DAY&&a>=som(NOW)?ritmo():null;
- return `<p style="margin-top:10px"><span class="fig-n" style="font-size:30px;font-weight:900">${N(qe)}</span> <span class="mut">de ${N(mq)} previstos para o período · ${esc(scopeLabel())}</span></p><div class="meter" aria-label="Atingimento"><span style="width:${Math.min(100,p*100)}%;background:${p>=1?'var(--green)':'var(--blue)'}"></span></div><p class="sm"><b>${nf.format(Math.round(p*100))}% de atingimento</b>${qe!==K(a,b).qual?' <span class="mut">· este número segue a data da qualificação, por isso pode diferir do cartão na visão por entrada</span>':''}</p>`+
-  (qm?`<p class="sm" style="margin-top:6px">Somando as ${N(qm)} vendas lançadas fora do RD: <b>${N(qe+qm)}</b>, ou <b>${nf.format(Math.round((qe+qm)/mq*100))}%</b> de atingimento. <span class="mut" title="${esc(TETO)}">(teto ⓘ)</span></p>`:'')+
+ return `<p style="margin-top:10px"><span class="fig-n" style="font-size:30px;font-weight:900">${N(qe)}</span> <span class="mut">de ${N(mq)} previstos para o período · ${esc(scopeLabel())}</span></p><div class="meter" aria-label="Atingimento"><span style="width:${Math.min(100,p*100)}%;background:${p>=1?'var(--green)':'var(--blue)'}"></span></div><p class="sm"><b>${nf.format(Math.round(p*100))}% de atingimento</b>${qm?' <span class="mut">· inclui '+N(qm)+' vendas lançadas fora do CRM</span>':''}${qe!==K(a,b).qual?' <span class="mut">· segue a data da qualificação, por isso pode diferir um pouco do cartão na visão por entrada</span>':''}</p>`+
   (r?`<div class="grid g2" style="margin-top:10px;gap:10px"><div><span class="l sm mut">Projeção para ${MES[new Date(NOW).getUTCMonth()]}</span><div class="fig-n" style="font-size:24px;font-weight:900">${N(r.proj)} <span class="sm mut" style="font-weight:700">${nf.format(Math.round(r.proj/r.mt*100))}% da meta de ${N(r.mt)}</span></div><span class="sm mut">no ritmo atual de ${nf1.format(r.ritmo)} por dia</span></div>
   <div><span class="l sm mut">Para bater a meta</span><div class="fig-n" style="font-size:24px;font-weight:900">${r.falta?N(r.falta):'Meta batida'}</div><span class="sm mut">${r.falta?'faltam, cerca de '+nf1.format(r.porDia)+' por dia nos '+r.rest+' dias restantes':'já acima da meta do mês'}</span></div></div>`:'')+geralNote()+
-  `<h3 style="margin-top:14px">Últimos 12 meses</h3>${leg([['Qualificados no RD','var(--blue)'],['Vendas fora do RD','color-mix(in srgb,var(--green) 55%,transparent)'],['Meta','var(--ink)',1]])}<div class="fig s" id="f-meta"></div>`}
+  `<h3 style="margin-top:14px">Últimos 12 meses</h3>${leg([['Qualificados no RD','var(--blue)'],['Vendas fora do CRM','color-mix(in srgb,var(--green) 55%,transparent)'],['Meta','var(--ink)',1]])}<div class="fig s" id="f-meta"></div>`}
 const fut0=t=>t>NOW;
 function metaTable(){const ks=[...new Set([...Object.keys(cfg.metaGeral||{}),...Object.keys(cfg.metas||{}).map(x=>x.split('|')[1])])].filter(Boolean).sort();
- const rows=ks.map(k=>{const [y,m]=k.split('-').map(Number);const t=Date.UTC(y,m-1,1),e=addM(t,1);const mt=metaMes(k,'q');if(!mt)return '';const q=qCount(t,Math.min(e,NOW));const qm=fut0(t)?0:qMan(t,Math.min(e,NOW));
+ const rows=ks.map(k=>{const [y,m]=k.split('-').map(Number);const t=Date.UTC(y,m-1,1),e=addM(t,1);const mt=metaMes(k,'q');if(!mt)return '';const qm=fut0(t)?0:qMan(t,Math.min(e,NOW));const q=qCount(t,Math.min(e,NOW))+qm;
   const cur=k===ym(NOW),fut=t>NOW;const r=cur?ritmo():null;const sit=fut?'<span class="mut">a começar</span>':cur?`projeção ${N(r.proj)} (${nf.format(Math.round(r.proj/mt*100))}%)`:q>=mt?'<span class="tag t-won">batida</span>':'<span class="tag t-lost">não batida</span>';
-  return `<tr><td>${MES[m-1]} ${y}</td><td class="n">${N(mt)}</td><td class="n">${fut?'—':N(q)}</td><td class="n">${fut?'—':nf.format(Math.round(q/mt*100))+'%'}</td><td class="n">${fut?'—':N(q+qm)}</td><td class="n">${fut?'—':nf.format(Math.round((q+qm)/mt*100))+'%'}</td><td>${sit}</td></tr>`}).join('');
- return rows?`<div class="scroll"><table class="stack"><thead><tr><th>Mês</th><th class="n">Meta</th><th class="n">Qualificados no RD</th><th class="n">Atingimento</th><th class="n">Somando vendas fora do RD</th><th class="n">Atingimento (teto)</th><th>Situação</th></tr></thead><tbody>${rows}</tbody></table></div><p class="sm mut" style="margin-top:6px">${esc(TETO)} A situação e a projeção usam só o RD.</p>`+geralNote():'<p class="mut">Sem metas cadastradas para a seleção.</p>'+geralNote()}
+  return `<tr><td>${MES[m-1]} ${y}</td><td class="n">${N(mt)}</td><td class="n">${fut?'—':N(q)}</td><td class="n">${fut?'—':(qm?N(qm):'—')}</td><td class="n">${fut?'—':nf.format(Math.round(q/mt*100))+'%'}</td><td>${sit}</td></tr>`}).join('');
+ return rows?`<div class="scroll"><table class="stack"><thead><tr><th>Mês</th><th class="n">Meta</th><th class="n">Qualificados</th><th class="n">Dos quais vendas fora do CRM</th><th class="n">Atingimento</th><th>Situação</th></tr></thead><tbody>${rows}</tbody></table></div>`+geralNote():'<p class="mut">Sem metas cadastradas para a seleção.</p>'+geralNote()}
 function metaChart(b){const sel=SEL();const end=som(b-1);const ms=[];for(let i=11;i>=0;i--)ms.push(addM(end,-i));
  const q=ms.map(t=>qCount(t,Math.min(addM(t,1),NOW)));const qm=ms.map(t=>t>NOW?0:qMan(t,Math.min(addM(t,1),NOW)));
  const mt=ms.map(t=>metaPer(t,addM(t,1),'q'));
- return {labels:ms.map(t=>MESC[new Date(t).getUTCMonth()]),tipL:ms.map(t=>MES[new Date(t).getUTCMonth()]+' '+new Date(t).getUTCFullYear()),series:[{n:'Qualificados no RD',c:'var(--blue)',t:'bar',v:q},{n:'Vendas fora do RD',c:'color-mix(in srgb,var(--green) 55%,transparent)',t:'bar',v:qm}],stack:true,marks:mt,tops:q.map((v,i)=>mt[i]?nf.format(Math.round(v/mt[i]*100))+'%':null),aria:'Meta de qualificados por mês'}}
+ return {labels:ms.map(t=>MESC[new Date(t).getUTCMonth()]),tipL:ms.map(t=>MES[new Date(t).getUTCMonth()]+' '+new Date(t).getUTCFullYear()),series:[{n:'Qualificados no RD',c:'var(--blue)',t:'bar',v:q},{n:'Vendas fora do CRM',c:'color-mix(in srgb,var(--green) 55%,transparent)',t:'bar',v:qm}],stack:true,marks:mt,tops:q.map((v,i)=>mt[i]?nf.format(Math.round((v+qm[i])/mt[i]*100))+'%':null),aria:'Meta de qualificados por mês'}}
 
 VIEWS['funil']=()=>{const [a,b]=range();const vf=visFun();if(!vf.length){main.innerHTML=head('Nenhum funil na seleção');return}
  if(!S.ff||!vf.some(f=>f.id===S.ff))S.ff=vf[0].id;const F=FI[S.ff];const sel=SEL();
@@ -565,7 +568,7 @@ VIEWS['entre-funis']=()=>{const [a,b]=range();const sel=SEL();const vf=visFun();
  <h3 style="margin-top:14px">Combinações mais frequentes</h3>${bars(Object.entries(combos).sort((x,y)=>y[1]-x[1]).slice(0,5).map(([l,v])=>({l,v})),N)}</div></div>
  <div class="box"><h2>Etapas equivalentes</h2><p class="mut sm">Percentual dos negócios de cada funil, com histórico, que chegaram ao grupo de etapas. Equivalências editáveis em Configurações.</p><div class="scroll"><table><thead><tr><th>Grupo</th>${vf.map(f=>`<th class="n">${esc(f.n)}</th>`).join('')}</tr></thead><tbody>${eqm.map(r=>`<tr><td>${GRUPOS[r.g]}</td>${r.cells.map(c=>`<td class="n">${c==null?'<span class="mut">sem etapa</span>':c.v==null?'—':`<span data-tip="${esc(esc(c.st))}">${PC(c.v)}</span>`}</td>`).join('')}</tr>`).join('')}</tbody></table></div></div>`};
 
-VIEWS['detalhamento']=()=>{const [a,b]=range();const k=K(a,b);const L2={leads:['Leads entrantes',k.ent],cont:['Leads entrantes',k.ent],qual:['Leads qualificados',k.q],qualm:['Leads qualificados',k.q],tq:['Leads qualificados',k.q],and:['Em andamento',k.o],vend:['Vendas',k.w],tv:['Vendas',k.w],perd:['Perdas',k.l],inv:['Negócios com origem Meta',k.lmo],cpl:['Negócios com origem Meta',k.lmo],cpq:['Qualificados com origem Meta',k.qmo],cmv:['Vendas com origem Meta',k.wmo]};
+VIEWS['detalhamento']=()=>{const [a,b]=range();const k=K(a,b);const L2={leads:['Leads entrantes',k.ent],cont:['Leads entrantes',k.ent],qual:['Leads qualificados (no RD)',k.qS],tq:['Leads qualificados (no RD)',k.qS],and:['Em andamento',k.o],vend:['Vendas',k.w],tv:['Vendas',k.w],perd:['Perdas',k.l],inv:['Negócios com origem Meta',k.lmo],cpl:['Negócios com origem Meta',k.lmo],cpq:['Qualificados com origem Meta',k.qmo],cmv:['Vendas com origem Meta',k.wmo]};
  const [lab,base]=L2[S.drill]||L2.leads;const q=S.dq.trim().toLowerCase();
  let rows=q?base.filter(d=>(d.id+' '+(d.cp?CI[d.cp].n:'')+' '+d.ow+' '+d.o+' '+FI[d.cf].n).toLowerCase().includes(q)):base.slice();
  const sk=S.dsort.k,dir=S.dsort.d;const val=d=>({c:d.c,qa:d.qa||0,ca:d.ca||0,id:d.id,st:d.st,f:FI[d.cf].n,ow:d.ow})[sk];rows.sort((x,y)=>{const u=val(x),v=val(y);return (u>v?1:u<v?-1:0)*dir});
