@@ -77,17 +77,38 @@ function contactKey(d) {
   return createHmac('sha256', SALT).update(String(k).toLowerCase()).digest('hex').slice(0, 12);
 }
 function customs(d) {
-  let city = null, utm = null;
+  let city = null, utm = null, obs = '';
   for (const f of d.deal_custom_fields || []) {
     const label = String((f.custom_field && (f.custom_field.label || f.custom_field.name)) || f.label || f.name || '');
     const v = Array.isArray(f.value) ? f.value.join(', ') : f.value;
     if (v == null || v === '') continue;
+    if (/observa|origem da venda|como chegou|como conheceu/i.test(label)) obs = (obs ? obs + ' ' : '') + String(v);
     if (/utm.?campaign|campanha.?utm/i.test(label)) utm = String(v).slice(0, 120);
     else if (/cidade|praç|praca|munic/i.test(label)) city = String(v).slice(0, 60);
   }
-  return { city, utm };
+  return { city, utm, obs };
 }
 
+// Classifica o texto de anotações/observação: de onde veio a venda.
+// Só a classificação e o termo encontrado são gravados; o texto nunca é salvo.
+const norm = t => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+const NEG = /\b(nao|n)\s+(veio|foi|e|era)\s+(de|do|da|por|pelo|pela)?\s*(anuncio|trafego|midia|campanha|facebook|instagram|meta|google)/;
+const RULES = [
+  ['m', /facebook|instagram|\binsta\b|\bfb\b|meta ads|\bmeta\b|lead ?ads?|formulario do (face|insta)|anuncio do (face|insta)|\bface\b/],
+  ['g', /google|adwords|youtube|pesquisa paga/],
+  ['p', /trafego pago|midia paga|anuncio|campanha paga|patrocinad|impulsionad|\bads\b|lead pago|\bpago\b/],
+  ['n', /indicacao|indicado|prospeccao|prospectad|organico|cliente antigo|recompra|carteira|parceir|presencial|na loja|balcao|porta a porta|walk ?in/],
+];
+function classify(texts) {
+  const found = {};
+  for (const t of texts) {
+    const x = norm(t); if (!x.trim()) continue;
+    const neg = x.match(NEG); if (neg) { found.n ||= neg[0].slice(0, 40); continue; }
+    for (const [c, re] of RULES) { const m = x.match(re); if (m && !found[c]) found[c] = m[0].slice(0, 40); }
+  }
+  for (const c of ['m', 'g', 'p', 'n']) if (found[c]) return [c, found[c]];
+  return ['', ''];
+}
 async function readJson(f, dflt) { try { return JSON.parse(await fs.readFile(f, 'utf8')); } catch { return dflt; } }
 async function writeJson(f, obj) { const tmp = f + '.tmp'; await fs.writeFile(tmp, JSON.stringify(obj)); await fs.rename(tmp, f); }
 
@@ -121,6 +142,7 @@ async function main() {
   const H = await readJson(histFile, null) || { start: now, lastRun: null, last: {}, ev: {} };
   const first = !H.lastRun;
   const deals = [];
+  const obsText = new Map();
   const seen = {};
   for (const [id, { d, pid }] of raw) {
     const sid = idOf(d.deal_stage) || d.deal_stage_id;
@@ -131,6 +153,7 @@ async function main() {
     const c = Date.parse(d.created_at) / 1000 | 0;
     const cl = d.closed_at ? (Date.parse(d.closed_at) / 1000 | 0) : 0;
     const cu = customs(d);
+    obsText.set(id, cu.obs);
     deals.push([id, pi, si, st, c, cl, code('src', d.deal_source && d.deal_source.name), code('camp', d.campaign && d.campaign.name), code('user', d.user && (d.user.name || d.user.nickname)), code('reason', st === 'l' && d.deal_lost_reason ? d.deal_lost_reason.name : null), contactKey(d), code('city', cu.city), code('utm', cu.utm), Math.round(Number(d.amount_total) || 0)]);
     // histórico: registra entrada em etapa e mudanças entre sincronizações
     const pidS = pls[pi].id, sidS = pls[pi].stages[si] && pls[pi].stages[si].id;
@@ -150,6 +173,30 @@ async function main() {
   }
   H.last = seen; H.lastRun = now;
 
+  // origem informada pela equipe nas anotações das vendas (funis de venda)
+  const notesFile = path.join(OUT, 'notes.json');
+  const NC = await readJson(notesFile, {});
+  const saleFunnels = new Set(pls.filter(p => /^vendas?\b/i.test(p.name.trim())).map(p => p.id));
+  let fetched = 0;
+  for (const r of deals) {
+    const [id, pi, , st] = r; if (st !== 'w' || !saleFunnels.has(pls[pi].id)) continue;
+    const d = raw.get(id).d; const upd = d.updated_at || '';
+    if (!NC[id] || NC[id].u !== upd) {
+      const texts = [obsText.get(id) || ''];
+      try {
+        for (let page = 1; page <= 5; page++) {
+          const j = await get('/activities', { deal_id: id, limit: 200, page });
+          const arr = list(j, 'activities'); texts.push(...arr.map(a => a.text || a.description || ''));
+          if (!(j && j.has_more) || arr.length < 200) break;
+        }
+        const [c, k] = classify(texts); NC[id] = { c, k, u: upd }; fetched++;
+      } catch (e) { log('anotações de', id, 'não lidas:', e.message); }
+    }
+    r.push(NC[id] ? NC[id].c : '', NC[id] ? NC[id].k : '');
+  }
+  for (const r of deals) if (r.length < 16) r.push('', '');
+  await writeJson(notesFile, NC);
+  log('anotações de vendas lidas nesta rodada:', fetched);
   const hist = {};
   for (const [id, evs] of Object.entries(H.ev)) {
     hist[id] = evs.map(e => { const pi = pIndex.get(e[0]); const si = pi == null ? -1 : pls[pi].stages.findIndex(s => s.id === e[1]); return [pi ?? -1, si, e[2], e[3] || 0]; });

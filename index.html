@@ -203,8 +203,8 @@ function loadData(bi){META=bi.meta;GEN=L(META.generated_at);HIST=L(META.track_st
  FUN=bi.pipelines.map(p=>({id:p.id,n:p.name,st:p.stages.map(s=>s.name),m:'pd'}));FI=Object.fromEntries(FUN.map(f=>[f.id,f]));
  CI=Object.fromEntries(DICT.camp.map((n,i)=>[String(i),{n}]));
  const dv=(k,i)=>i>=0?DICT[k][i]:null;
- D=bi.deals.map(r=>{const [id,pi,si,st,c,cl,src,camp,user,reason,ck,city,utm,amt]=r;const f=bi.pipelines[pi];
-  const d={id,cf:f.id,cs:Math.max(0,si),st:st==='w'?'won':st==='l'?'lost':'open',hold:st==='p',c:L(c),ca:cl?L(cl):null,o:normO(dv('src',src)),cp:camp>=0?String(camp):null,ow:dv('user',user)||'Sem responsável',pr:dv('city',city)||'Não informada',utm:dv('utm',utm),mr:dv('reason',reason),cid:ck||('n'+id),am:amt,mo:null,lf:null,ls:null};
+ D=bi.deals.map(r=>{const [id,pi,si,st,c,cl,src,camp,user,reason,ck,city,utm,amt,nc,nk]=r;const f=bi.pipelines[pi];
+  const d={id,cf:f.id,cs:Math.max(0,si),st:st==='w'?'won':st==='l'?'lost':'open',hold:st==='p',c:L(c),ca:cl?L(cl):null,o:normO(dv('src',src)),cp:camp>=0?String(camp):null,ow:dv('user',user)||'Sem responsável',pr:dv('city',city)||'Não informada',utm:dv('utm',utm),mr:dv('reason',reason),cid:ck||('n'+id),am:amt,nc:nc||'',nk:nk||'',mo:null,lf:null,ls:null};
   if(d.st!=='open'&&d.ca==null)d.ca=d.c;
   if(d.st==='lost'){d.mo=cleanMot(d.mr);d.lf=d.cf;d.ls=d.cs;if(d.mr!=null)MOTRAW[d.mr]=(MOTRAW[d.mr]||0)+1}
   const hv=bi.hist[id];let h=hv&&hv.length?hv.filter(e=>e[0]>=0&&e[1]>=0).map(e=>({f:bi.pipelines[e[0]].id,s:e[1],t:e[2]?L(e[2]):d.c})):null;
@@ -287,10 +287,10 @@ const scopeName=sc=>sc?[...sc].map(f=>FI[f]?FI[f].n:f).join(', '):'funis selecio
 function K(a,b,asOf){const X=asOf||NOW;const sel=SEL(),ev=S.mode==='eventos';const ent=sel.filter(d=>d.c>=a&&d.c<b);
  const qd=d=>d.qa!=null&&d.qa<X,cl=(d,st)=>d.st===st&&d.ca<X,op=d=>d.c<X&&!(d.ca!=null&&d.ca<X);
  const q=ev?sel.filter(d=>d.qa!=null&&d.qa>=a&&d.qa<b):ent.filter(qd);
- const w=ev?sel.filter(d=>d.st==='won'&&d.ca>=a&&d.ca<b):ent.filter(d=>cl(d,'won'));
+ const w=(ev?sel.filter(d=>d.st==='won'&&d.ca>=a&&d.ca<b):ent.filter(d=>cl(d,'won'))).filter(d=>isSaleF(d.cf));
  const l=ev?sel.filter(d=>d.st==='lost'&&d.ca>=a&&d.ca<b):ent.filter(d=>cl(d,'lost'));
  const o=ev?sel.filter(op):ent.filter(op);
- const att=x=>x.filter(d=>d.cp);const lm=att(ent),qm=att(q),wm=att(w);const sp=metaSpendRD(a,b);const mo=x=>x.filter(d=>isMetaO(d.o)&&sp.fs&&d.fs.some(f=>sp.fs.has(f)));const lmo=mo(ent),qmo=mo(q),wmo=mo(w);const cost=n=>sp.v==null||!n?null:sp.v/n;
+ const att=x=>x.filter(d=>d.cp);const lm=att(ent),qm=att(q),wm=att(w);const sp=metaSpendRD(a,b);const mo=x=>x.filter(d=>isMetaO(d.o)&&sp.fs&&d.fs.some(f=>sp.fs.has(f)));const lmo=mo(ent),qmo=mo(q),wmo=w.filter(d=>saleMeta(d)&&sp.fs&&sp.fs.has(d.cf));const cost=n=>sp.v==null||!n?null:sp.v/n;
  const qs=qualScope();const qS=qs?q.filter(d=>qs.has(d.qf)):q;const eS=qs?ent.filter(d=>d.fs.some(f=>qs.has(f))):ent;const qMn=manual(a,b,qs).n;
  return {a,b,ent,q,w,l,o,lm,qm,wm,qs,qS,qMn,leads:ent.length,cont:uniq(ent),qual:qS.length+qMn,qualRD:qS.length,tq:ev?null:ratio(qS.length,eS.length),and:o.length,vend:w.length,tv:ev?null:ratio(w.length,ent.length),perd:l.length,
   lmo,qmo,wmo,inv:sp.v,why:sp.why,cpl:cost(lmo.length),cpq:cost(qmo.length),man:manual(a,b),cmv:cost(wmo.length+manual(a,b,sp.fs).meta),wmoT:wmo.length+manual(a,b,sp.fs).meta,flag:[],qinf:q.filter(d=>d.qi).length}}
@@ -414,7 +414,7 @@ VIEWS['visao-geral']=()=>{const [a,b]=range(),cr=crange(a,b);const k=K(a,b),c=cr
   ['qual','Leads qualificados',N(k.qual),(k.qs?scopeName(k.qs):(ev?'qualificações no período':'dos negócios criados'))+(k.qMn?' · inclui '+N(k.qMn)+' vendas lançadas fora do CRM':''),k.qual,c&&c.qual],
   ['tq','Taxa de qualificação',ev?null:PC(k.tq),k.qs?'qualificados ÷ negócios, '+scopeName(k.qs):'qualificados ÷ negócios',k.tq,c&&c.tq,0,PC],
   ['and','Em andamento',N(k.and),ev?'abertos agora':'ainda abertos',k.and,c&&c.and],
-  ['vend','Vendas',N(k.vend+k.man.n),k.man.n?N(k.vend)+' no RD + '+N(k.man.n)+' fora do RD':(k.man.blocked?'no RD; as de fora não se dividem por este filtro':'registradas no RD'),k.vend+k.man.n,c&&(c.vend+c.man.n)],
+  ['vend','Vendas',N(k.vend+k.man.n),k.man.n?N(k.vend)+' no RD + '+N(k.man.n)+' fora do RD':(k.man.blocked?'no RD; as de fora não se dividem por este filtro':'ganhos nos funis de venda'),k.vend+k.man.n,c&&(c.vend+c.man.n)],
   ['tv','Conversão em vendas',ev?null:PC(k.tv),'ganhos no RD ÷ negócios',k.tv,c&&c.tv,0,PC],
   ['perd','Perdas',N(k.perd),'negócios perdidos',k.perd,c&&c.perd,1],
   ['inv','Investimento em mídia',R(k.inv),k.inv==null?(k.why||''):'Meta Ads nos funis de venda · Google pendente',k.inv,c&&c.inv,0,RT],
@@ -578,7 +578,7 @@ VIEWS['detalhamento']=()=>{const [a,b]=range();const k=K(a,b);const L2={leads:['
  `<div class="chips">${[['leads','Entrantes'],['qual','Qualificados'],['and','Em andamento'],['vend','Vendas'],['perd','Perdas'],['cpl','Origem Meta']].map(([id,t])=>`<button class="chip ${(L2[S.drill]||L2.leads)[0]===L2[id][0]?'on':''}" data-drill2="${id}">${t}</button>`).join('')}</div>
  <div class="box"><div class="bh"><input class="search" id="dq" type="search" placeholder="Buscar por ID, campanha, origem ou responsável" value="${esc(S.dq)}" aria-label="Buscar"><button class="btn pr" id="csv">Copiar CSV (${N(rows.length)})</button></div>
  <div class="scroll"><table class="stack"><thead><tr>${th('id','Negócio')}${th('f','Funil · etapa atual')}${th('st','Status')}${th('c','Criado',1)}${th('qa','Qualificado',1)}${th('ca','Fechado',1)}<th>Origem · campanha</th>${th('ow','Responsável')}<th>Motivo de perda</th><th>Praça</th></tr></thead>
- <tbody>${pg.map(d=>`<tr class="click" data-open="${esc(d.id)}"><td><a href="https://crm.rdstation.com/app/deals/${encodeURIComponent(d.id)}" target="_blank" rel="noopener" title="Abrir no RD Station CRM">${esc(d.id.slice(-8))} ↗</a>${CONT_DEALS.get(d.cid).length>1?`<br><span class="mut sm">contato com ${CONT_DEALS.get(d.cid).length} negócios</span>`:''}</td><td>${esc(FI[d.cf].n)} · ${esc(FI[d.cf].st[d.cs]||'')}</td><td><span class="tag t-${d.st}">${STL[d.st]}${d.hold?' (pausado)':''}</span></td><td class="n">${fD(d.c)}</td><td class="n">${d.qa?fD(d.qa)+(d.qi?'*':''):'—'}</td><td class="n">${d.ca?fD(d.ca):'—'}</td><td>${esc(d.o)}${d.cp?'<br><span class="mut sm">'+esc(CI[d.cp].n)+'</span>':''}</td><td>${esc(d.ow)}</td><td>${d.st==='lost'?esc(d.mo||'Motivo não informado'):''}</td><td>${esc(d.pr)}</td></tr>${S.open===d.id?`<tr><td colspan="10">${histHtml(d)}</td></tr>`:''}`).join('')||'<tr><td colspan="10" class="mut">Nenhum negócio no recorte.</td></tr>'}</tbody></table></div>
+ <tbody>${pg.map(d=>`<tr class="click" data-open="${esc(d.id)}"><td><a href="https://crm.rdstation.com/app/deals/${encodeURIComponent(d.id)}" target="_blank" rel="noopener" title="Abrir no RD Station CRM">${esc(d.id.slice(-8))} ↗</a>${CONT_DEALS.get(d.cid).length>1?`<br><span class="mut sm">contato com ${CONT_DEALS.get(d.cid).length} negócios</span>`:''}</td><td>${esc(FI[d.cf].n)} · ${esc(FI[d.cf].st[d.cs]||'')}</td><td><span class="tag t-${d.st}">${STL[d.st]}${d.hold?' (pausado)':''}</span></td><td class="n">${fD(d.c)}</td><td class="n">${d.qa?fD(d.qa)+(d.qi?'*':''):'—'}</td><td class="n">${d.ca?fD(d.ca):'—'}</td><td>${esc(d.o)}${d.cp?'<br><span class="mut sm">'+esc(CI[d.cp].n)+'</span>':''}${d.st==='won'&&isSaleF(d.cf)?'<br><span class="sm"><b>Anotação:</b> '+esc(NC_LABEL[d.nc]||'')+(d.nk?' ("'+esc(d.nk)+'")':'')+'</span>':''}</td><td>${esc(d.ow)}</td><td>${d.st==='lost'?esc(d.mo||'Motivo não informado'):''}</td><td>${esc(d.pr)}</td></tr>${S.open===d.id?`<tr><td colspan="10">${histHtml(d)}</td></tr>`:''}`).join('')||'<tr><td colspan="10" class="mut">Nenhum negócio no recorte.</td></tr>'}</tbody></table></div>
  <div class="pager"><span class="sm mut">Página ${S.dpage+1} de ${pages}</span><button class="btn" id="pp" ${S.dpage?'':'disabled'}>Anterior</button><button class="btn" id="pn" ${S.dpage<pages-1?'':'disabled'}>Próxima</button></div>
  <p class="sm mut">Clique na linha para ver a jornada; no ID para abrir o negócio no RD (exige login no RD). * Qualificação inferida pela etapa, sem data comprovada no histórico. <span id="csvmsg" aria-live="polite"></span></p></div>`;
  VIEWS._rows=rows};
@@ -618,6 +618,9 @@ VIEWS['configuracoes']=()=>{const mk=S.cfgM;const months=[];for(let t=addM(som(N
 let MA=null,MST=null;
 const META_ORIG=/facebook ads|instagram ads|meta ads/i;
 const isMetaO=o=>META_ORIG.test(o||'');
+const isSaleF=f=>!!(FI[f]&&/^vendas?\b/i.test(FI[f].n.trim()));
+const NC_LABEL={m:'Meta Ads',g:'Google Ads',p:'Mídia paga (canal não informado)',n:'Não paga','':'Sem informação na anotação'};
+const saleMeta=d=>d.nc?(d.nc==='m'||d.nc==='p'):isMetaO(d.o);
 const ACT_URL='https://github.com/myllenafflavia/bi-digna/actions/workflows/sync-meta.yml';
 const guessMB=n=>/parque/i.test(n)?'pp':/plano/i.test(n)?'pd':/grupo/i.test(n)?'*':'ou';
 const MB_LABEL={pd:'Plano Digna',pp:'Parque da Paz','*':'Grupo (todas as operações)',ou:'Fora do RD'};
@@ -691,7 +694,7 @@ VIEWS['meta']=()=>{if(!MA){main.innerHTML=head('Meta Ads ainda não sincronizado
  // Meta × RD
  const rdAcc=acc.filter(x=>mFun(x));const rdF=new Set(rdAcc.map(mFun));
  const rdEnt=D.filter(d=>d.c>=a&&d.c<b&&d.fs.some(f=>rdF.has(f))&&isMetaO(d.o));const rdSp=mTot(mAgg(mRowsInc(a,b,rdAcc),()=>1)).sp;const rdLd=mTot(mAgg(mRowsInc(a,b,rdAcc),()=>1)).ld;
- const rdQ=rdEnt.filter(d=>d.qa!=null).length,rdW0=rdEnt.filter(d=>d.st==='won').length,rdWm=manual(a,b,rdF).meta,rdW=rdW0+rdWm;
+ const rdSales=D.filter(d=>d.c>=a&&d.c<b&&d.st==='won'&&rdF.has(d.cf));const rdQ=rdEnt.filter(d=>d.qa!=null).length,rdW0=rdSales.filter(saleMeta).length,rdWm=manual(a,b,rdF).meta,rdW=rdW0+rdWm;
  // validação: último mês fechado
  const vm=addM(som(NOW),-1),ve=som(NOW);
  const valid=all.map(ac=>{const t=mTot(mAgg(mRows(vm,ve,[ac]),()=>1));const r=mReach(ac,'account',ac,vm,ve);const i=MA[ac].info||{};return `<tr><td><b>${esc(mName(ac))}</b><br><span class="sm mut">act_${esc(ac)} · ${esc(i.currency||'?')} · ${esc(i.timezone||'?')}</span></td><td class="n">${money(t.sp,i.currency)}</td><td class="n">${N(t.im)}</td><td class="n">${r?N(r[0]):'—'}</td><td class="n">${N(t.cl)}</td><td class="n">${N(t.lk)}</td><td class="n">${N(t.ld)}</td><td class="n">${N(t.mc)}</td><td>${st.accounts&&st.accounts[ac]&&st.accounts[ac].pending?'<span class="tag t-open">acesso pendente</span>':i.ok===false||(st.accounts&&st.accounts[ac]&&!st.accounts[ac].ok)?'<span class="tag t-lost">falhou</span>':'<span class="tag t-won">acesso ok</span>'}</td></tr>`}).join('');
@@ -707,6 +710,7 @@ VIEWS['meta']=()=>{if(!MA){main.innerHTML=head('Meta Ads ainda não sincronizado
   <div class="scroll"><table>${thead}<tbody>${ents.slice(0,300).map(o=>trow(o,'',lab(o),o.key,o.ac)).join('')||'<tr><td colspan="14" class="mut">Sem veiculação no período.</td></tr>'}${ents.length?trow(ET,'tot','Total ('+ents.length+')'):''}</tbody></table></div></div>
   <div class="box"><h2>Meta × RD CRM</h2><p class="mut sm">Leads do Meta são registros da plataforma. Negócios, qualificados e vendas vêm do RD, com origem Facebook, Instagram ou Meta Ads, só nos funis ligados às contas selecionadas (${esc([...rdF].map(f=>FI[f].n).join(', ')||'nenhum')}). Os dois números medem coisas diferentes e não devem bater.</p>
   <div class="cards">${[['Leads registrados no Meta',N(rdLd)],['Negócios no RD (origem Meta)',N(rdEnt.length)],['Qualificados no RD',N(rdQ)],['Vendas (origem Meta)',N(rdW)+(rdWm?' ('+N(rdW0)+' no RD + '+N(rdWm)+' fora)':'')],['Investimento em captação',C?money(rdSp,C):'—'],['Custo por negócio no RD',C?money(ratio(rdSp,rdEnt.length),C):'—'],['Custo por qualificado no RD',C?money(ratio(rdSp,rdQ),C):'—'],['Custo de mídia por venda',C?money(ratio(rdSp,rdW),C):'—']].map(([l,v])=>`<div class="card"><span class="l">${l}</span><span class="v">${esc(v)}</span></div>`).join('')}</div>
+  ${(()=>{const c={};for(const d of rdSales){const k=d.nc||(isMetaO(d.o)?'o':'');c[k]=(c[k]||0)+1}const tot=rdSales.length;if(!tot)return '';const lab={...NC_LABEL,o:'Sem anotação, origem do RD = Meta'};return `<h3 style="margin-top:6px">Origem das ${N(tot)} vendas, pela anotação da equipe</h3>`+bars(['m','p','o','g','n',''].filter(k=>c[k]).map(k=>({l:lab[k],v:c[k],c:k==='m'||k==='p'||k==='o'?'var(--blue)':k==='n'?'var(--grey)':'var(--green)'})),N)+'<p class="sm mut" style="margin:8px 0">Entram como venda de mídia Meta: Meta Ads, mídia paga sem canal informado (o Google ainda não está integrado) e, quando não há anotação, as de origem Meta no RD. A anotação vale mais que o campo de origem.</p>'})()}
   <p class="sm mut">Contas e funis: ${all.map(x=>esc(mName(x))+' → '+(mFun(x)?esc(FI[mFun(x)].n):'fora do RD')).join(' · ')}. Ajuste em Configurações. Qualificados e vendas seguem os negócios criados no período, até a última atualização.</p></div>
   <div class="box"><h2>Validação com o Gerenciador de Anúncios</h2><p class="mut sm">Totais de ${MES[new Date(vm).getUTCMonth()]} de ${new Date(vm).getUTCFullYear()} (mês fechado). Para comparar, use no Gerenciador as mesmas datas (01 a ${fDs(ve-DAY)}), o nível de conta, o fuso da conta e a atribuição padrão. O alcance mensal só aparece depois que a rodada que consulta esse mês concluir.</p>
   <div class="scroll"><table class="stack"><thead><tr><th>Conta</th><th class="n">Investimento</th><th class="n">Impressões</th><th class="n">Alcance</th><th class="n">Cliques</th><th class="n">Cliques no link</th><th class="n">Leads</th><th class="n">Conversas</th><th>Acesso</th></tr></thead><tbody>${valid}</tbody></table></div>
