@@ -311,6 +311,11 @@ def main():
             print(f"ontem a hoje, {rotulo}: total = {total}")
         except (ConsultaFalhou, PermissionError) as erro:
             print(f"ontem a hoje, {rotulo}: falhou ({erro})")
+    try:
+        total, _ = itens_relatorio(ontem, ontem, limit=1, max_paginas=1)
+        print(f"só ontem ({ontem} a {ontem}): total = {total}")
+    except (ConsultaFalhou, PermissionError) as erro:
+        print(f"só ontem: falhou ({erro})")
     for dias in (0, 7, 30):
         try:
             total, _ = itens_relatorio(hoje - timedelta(days=dias), hoje, limit=1, max_paginas=1)
@@ -318,10 +323,18 @@ def main():
         except (ConsultaFalhou, PermissionError) as erro:
             print(f"últimos {dias} dias: falhou ({erro})")
 
-    try:
-        total, itens = itens_relatorio(ontem, hoje)
-    except (ConsultaFalhou, PermissionError) as erro:
-        print(f"Relatório falhou: {erro}")
+    total, itens = None, []
+    for limite in (50, 30, 20, 10, 5):
+        try:
+            total, itens = itens_relatorio(ontem, hoje, limit=limite, max_paginas=max(1, 100 // limite))
+            print(f"maior limit aceito entre os testados: {limite}")
+            break
+        except ConsultaFalhou as erro:
+            print(f"limit={limite}: {erro}")
+        except PermissionError as erro:
+            print(f"Relatório sem permissão: {erro}")
+            return
+    if not itens:
         return
     ids = [i.get("id") for i in itens]
     criados = [str(i.get("created_at") or "")[:10] for i in itens]
