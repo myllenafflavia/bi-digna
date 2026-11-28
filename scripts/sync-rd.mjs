@@ -177,11 +177,12 @@ async function main() {
   const notesFile = path.join(OUT, 'notes.json');
   const NC = await readJson(notesFile, {});
   const saleFunnels = new Set(pls.filter(p => /^vendas?\b/i.test(p.name.trim())).map(p => p.id));
-  let fetched = 0;
+  let fetched = 0; const ND = { vendas: 0, com_anotacao: 0, sem_anotacao: 0, classificadas: 0, campos_personalizados: {} };
+  for (const { d } of raw.values()) for (const f of d.deal_custom_fields || []) { const l = String((f.custom_field && (f.custom_field.label || f.custom_field.name)) || f.label || '').trim(); if (l && f.value != null && f.value !== '') ND.campos_personalizados[l] = (ND.campos_personalizados[l] || 0) + 1; }
   for (const r of deals) {
     const [id, pi, , st] = r; if (st !== 'w' || !saleFunnels.has(pls[pi].id)) continue;
     const d = raw.get(id).d; const upd = d.updated_at || '';
-    if (!NC[id] || NC[id].u !== upd) {
+    if (!NC[id] || NC[id].u !== upd || NC[id].t === undefined) {
       const texts = [obsText.get(id) || ''];
       try {
         for (let page = 1; page <= 5; page++) {
@@ -189,10 +190,11 @@ async function main() {
           const arr = list(j, 'activities'); texts.push(...arr.map(a => a.text || a.description || ''));
           if (!(j && j.has_more) || arr.length < 200) break;
         }
-        const [c, k] = classify(texts); NC[id] = { c, k, u: upd }; fetched++;
+        const [c, k] = classify(texts); NC[id] = { c, k, u: upd, t: texts.filter(x => String(x).trim()).length }; fetched++;
       } catch (e) { log('anotações de', id, 'não lidas:', e.message); }
     }
     r.push(NC[id] ? NC[id].c : '', NC[id] ? NC[id].k : '');
+    if (NC[id]) { ND.vendas++; if (NC[id].t > 0) ND.com_anotacao++; else if (NC[id].t === 0) ND.sem_anotacao++; if (NC[id].c) ND.classificadas++; }
   }
   for (const r of deals) if (r.length < 16) r.push('', '');
   await writeJson(notesFile, NC);
@@ -206,7 +208,7 @@ async function main() {
     meta: { generated_at: Math.round(now / 1000), track_start: Math.round(H.start / 1000), deals: deals.length, source: 'RD Station CRM API v1' },
     pipelines: pls, dict, deals, hist,
   });
-  await writeJson(path.join(OUT, 'status.json'), { ok: true, at: Math.round(now / 1000), deals: deals.length, message: 'Sincronização concluída' });
+  await writeJson(path.join(OUT, 'status.json'), { ok: true, at: Math.round(now / 1000), deals: deals.length, message: 'Sincronização concluída', anotacoes: ND });
   log('ok:', deals.length, 'negócios gravados');
 }
 
