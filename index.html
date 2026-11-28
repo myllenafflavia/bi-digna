@@ -76,6 +76,7 @@ main{padding:18px max(3vw,14px) 48px;max-width:1440px;margin:0 auto}
 .card .l{font-size:13px;color:var(--mut);font-weight:700}
 .card .v{font-family:Nunito,system-ui,sans-serif;font-weight:900;font-size:clamp(22px,2.4vw,28px);line-height:1.15;white-space:nowrap}
 .card .v.na{font-size:16px;color:var(--mut);font-weight:800;white-space:normal}
+.card .vx{font-size:13.5px;font-weight:700;color:var(--blue2)}.card .vx b{font-family:Nunito,system-ui,sans-serif;font-size:17px;font-weight:900}
 .card .s{font-size:12.5px;color:var(--mut)}
 .dl{font-size:12.5px;font-weight:700;white-space:nowrap}
 .up{color:var(--green)}.dn{color:var(--red)}.eq{color:var(--mut)}
@@ -407,7 +408,6 @@ VIEWS['visao-geral']=()=>{const [a,b]=range(),cr=crange(a,b);const k=K(a,b),c=cr
   ['leads','Leads entrantes',N(k.leads),'negócios criados',k.leads,c&&c.leads],
   ['cont','Contatos únicos',N(k.cont),'pessoas distintas',k.cont,c&&c.cont],
   ['qual','Leads qualificados',N(k.qual),ev?'qualificações no RD':'dos negócios criados, no RD',k.qual,c&&c.qual],
-  ['qualm','Qualificados + vendas fora do CRM',N(k.qual+k.man.n),k.man.blocked?'vendas fora do CRM não se dividem por este filtro':k.man.n?'inclui '+N(k.man.n)+' vendas lançadas fora do CRM (teto)':'nenhuma venda lançada fora do CRM no período',k.qual+k.man.n,c&&(c.qual+c.man.n)],
   ['tq','Taxa de qualificação',ev?null:PC(k.tq),'qualificados ÷ negócios',k.tq,c&&c.tq,0,PC],
   ['and','Em andamento',N(k.and),ev?'abertos agora':'ainda abertos',k.and,c&&c.and],
   ['vend','Vendas',N(k.vend+k.man.n),k.man.n?N(k.vend)+' no RD + '+N(k.man.n)+' fora do RD':(k.man.blocked?'no RD; as de fora não se dividem por este filtro':'registradas no RD'),k.vend+k.man.n,c&&(c.vend+c.man.n)],
@@ -423,7 +423,7 @@ VIEWS['visao-geral']=()=>{const [a,b]=range(),cr=crange(a,b);const k=K(a,b),c=cr
  const title=`${N(k.qual)} leads qualificados em ${esc(plabel(a,b))}`+(pq!=null?`, ${nf.format(Math.round(pq*100))}% da meta proporcional`:'');
  main.innerHTML=head(title,`${N(k.leads)} negócios entraram${k.tq!=null?' e '+PC(k.tq)+' já qualificaram':''}. ${cpqTxt} ${cr?'Comparação com '+esc(fD(cr[0]))+' a '+esc(fD(cr[1]-1))+(ev?'.':', medida na mesma idade dos negócios.'):''}`)+
 
-  `<div class="cards">${cards.map(([id,l,v,s,cur,cmp,inv,fm])=>`<button class="card" id="k-${id}" data-drill="${id}" title="${id==='qualm'?esc(TETO):'Abrir negócios que compõem o número'}"><span class="l">${l}</span><span class="v ${v==null?'na':''}">${v==null?(id==='tq'||id==='tv'?'Disponível na visão por entrada':'Indisponível'):esc(v)}</span><span class="s">${esc(s)}</span>${cr&&v!=null?dlt(cur,cmp,inv,fm||N):''}</button>`).join('')}</div>`+
+  `<div class="cards">${cards.map(([id,l,v,s,cur,cmp,inv,fm])=>`<button class="card" id="k-${id}" data-drill="${id}" title="Abrir negócios que compõem o número"><span class="l">${l}</span><span class="v ${v==null?'na':''}">${v==null?(id==='tq'||id==='tv'?'Disponível na visão por entrada':'Indisponível'):esc(v)}</span>${id==='qual'&&k.man.n?`<span class="vx" title="${esc(TETO)}">+ ${N(k.man.n)} vendas fora do CRM = <b>${N(k.qual+k.man.n)}</b></span>`:''}<span class="s">${esc(s)}</span>${cr&&v!=null?dlt(cur,cmp,inv,fm||N):''}</button>`).join('')}</div>`+
   `<div class="grid g2"><div class="box flat" id="ov-evo"><div class="bh"><div><h2>Entrada, qualificação e vendas</h2><p class="mut sm">${ev?'Eventos ocorridos em cada intervalo':'Agrupado pela data de entrada do negócio; conversões contadas até a última atualização'}</p></div>
    <div class="seg" role="group" aria-label="Granularidade">${['auto','hora','dia','semana','mes'].map(g=>`<button data-gran="${g}" class="${S.gran===g?'on':''}">${g==='auto'?'Auto':g==='mes'?'Mês':g[0].toUpperCase()+g.slice(1)}</button>`).join('')}</div></div>
    ${leg([['Leads entrantes','var(--grey)'],['Qualificados','var(--blue)',1],['Vendas','var(--green)',1]])}<div class="fig" id="f-evo"></div></div>
