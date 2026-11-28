@@ -248,58 +248,153 @@ def contar_historico(customer_id, extra):
 
 
 # -------------------------------------------------------------------- testes
+#
+# Rodada 2. A rodada 1 mostrou que /v4/reports traz o ID do contato e que filtros
+# de lista precisam ir como parâmetro repetido (sent_by=bot&sent_by=customer),
+# não separados por vírgula. Esta rodada confirma o que cada item representa,
+# o formato das tags e dos campos de mensagem, e a semântica das datas.
+
+TODOS_REMETENTES = ["bot", "customer", "operator"]
+TIPOS_TEXTO = ["text", "button_reply", "quick_reply", "list_reply", "interactive"]
+
+
+def itens_relatorio(inicio, fim, extra=None, limit=100, max_paginas=5):
+    """Lê até max_paginas do relatório e devolve (total, itens)."""
+    itens, total = [], None
+    for page in range(1, max_paginas + 1):
+        params = {"start_date": inicio.isoformat(), "end_date": fim.isoformat(),
+                  "type": "customers", "channel": "whatsapp", "page": page, "limit": limit}
+        params.update(extra or {})
+        resposta = get("/reports", params, base=BASE_V4)
+        if not isinstance(resposta, dict):
+            break
+        total = resposta.get("total")
+        docs = resposta.get("docs") or []
+        itens.extend(d for d in docs if isinstance(d, dict))
+        if page >= (resposta.get("pages") or 1):
+            break
+    return total, itens
+
+
+def data_da_mensagem(item):
+    for chave, valor in item.items():
+        if any(p in chave for p in ("created", "date", "timestamp", "sent_at")) and valor:
+            return chave, str(valor)
+    return None, None
+
+
+def historico_completo(customer_id, extra=None):
+    mensagens = []
+    for page in range(1, 21):
+        params = {"customer_id": customer_id, "channel": "whatsapp", "limit": 100, "page": page,
+                  "sent_by": TODOS_REMETENTES, "type": TIPOS_TEXTO}
+        params.update(extra or {})
+        lote = abrir_payload(get("/messages/history", params))
+        if not isinstance(lote, list) or not lote:
+            break
+        mensagens.extend(abrir_payload(m) for m in lote)
+        if len(lote) < 100:
+            break
+    return mensagens
+
 
 def main():
     hoje = date.today()
     ontem = hoje - timedelta(days=1)
 
-    # Teste 1: listagem de contatos (candidata à descoberta, rota 2)
-    clientes = tentar("1. GET /v2/customers (página 1, limit 5)",
-                      "/customers", {"limit": 5, "page": 1, "channels": "whatsapp"})
-    tentar("1b. GET /v2/customers (página 2, limit 5)",
-           "/customers", {"limit": 5, "page": 2, "channels": "whatsapp"})
+    # Teste 5: o que cada item do relatório representa
+    print("\n===== 5. Relatório type=customers: o que cada item representa =====")
+    for rotulo, extra in [("padrão", {}), ("status=opened", {"status": "opened"}),
+                          ("status=closed", {"status": "closed"})]:
+        try:
+            total, _ = itens_relatorio(ontem, hoje, extra, limit=1, max_paginas=1)
+            print(f"ontem a hoje, {rotulo}: total = {total}")
+        except (ConsultaFalhou, PermissionError) as erro:
+            print(f"ontem a hoje, {rotulo}: falhou ({erro})")
+    for dias in (0, 7, 30):
+        try:
+            total, _ = itens_relatorio(hoje - timedelta(days=dias), hoje, limit=1, max_paginas=1)
+            print(f"últimos {dias} dias até hoje: total = {total}")
+        except (ConsultaFalhou, PermissionError) as erro:
+            print(f"últimos {dias} dias: falhou ({erro})")
 
-    # Teste 2: relatório de atendimentos (candidata à descoberta, rota 1), API v4
-    relatorio = tentar("2. GET /v4/reports type=customers (ontem a hoje)", "/reports", {
-        "start_date": ontem.isoformat(), "end_date": hoje.isoformat(),
-        "type": "customers", "channel": "whatsapp", "page": 1, "limit": 5,
-    }, base=BASE_V4)
-
-    # Teste 3: histórico de um contato, com bot e respostas de botão incluídos
-    customer_id = primeiro_id(relatorio) or primeiro_id(clientes)
-    print(f"\nContato usado nos testes 3 e 4: {'encontrado' if customer_id else 'nenhum ID encontrado'}")
-    if not customer_id:
+    try:
+        total, itens = itens_relatorio(ontem, hoje)
+    except (ConsultaFalhou, PermissionError) as erro:
+        print(f"Relatório falhou: {erro}")
         return
+    ids = [i.get("id") for i in itens]
+    criados = [str(i.get("created_at") or "")[:10] for i in itens]
+    print(f"itens lidos: {len(itens)} de {total} | IDs únicos: {len(set(ids))}")
+    print(f"created_at dentro da janela ({ontem} a {hoje}): {sum(c >= ontem.isoformat() for c in criados)}")
+    print(f"created_at antes da janela: {sum(bool(c) and c < ontem.isoformat() for c in criados)}")
+    print(f"created_at mais antigo: {min((c for c in criados if c), default='nenhum')}")
+    print(f"itens com contact_origin preenchido: {sum(bool(i.get('contact_origin')) for i in itens)}")
+    com_tags = [i for i in itens if i.get("tags")]
+    print(f"itens com tags: {len(com_tags)}")
+    if com_tags:
+        mostrar("5b. formato de tags (primeiro item com tags)", com_tags[0]["tags"])
+    extra = next((i.get("extra_data") for i in itens if isinstance(i.get("extra_data"), dict)), {})
+    for campo in ("last_message_sent", "last_message_received"):
+        valor = str(extra.get(campo) or "")
+        print(f"extra_data.{campo}: {len(valor)} caracteres, só dígitos = {valor.isdigit()}")
 
-    tentar("3. GET /v2/messages/history com sent_by e type ampliados", "/messages/history", {
-        "customer_id": customer_id, "channel": "whatsapp", "limit": 3, "page": 1,
-        "sent_by": "bot,customer,operator",
-        "type": "text,button_reply,quick_reply,list_reply,interactive",
-    })
+    # Teste 6: campos de mensagem, com o contato mais antigo da página (mais chance de histórico)
+    candidatos = sorted((i for i in itens if i.get("id")), key=lambda i: str(i.get("created_at") or "9"))
+    contato = None
+    for item in candidatos[:15]:
+        try:
+            msgs = historico_completo(item["id"])
+        except (ConsultaFalhou, PermissionError):
+            continue
+        if msgs:
+            contato, mensagens = item["id"], msgs
+            break
+    if not contato:
+        print("\nNenhum contato da página com mensagens encontradas.")
+        return
+    print(f"\nContato com histórico encontrado: {len(mensagens)} mensagens (todos os remetentes e tipos)")
+    mostrar("6. formato de uma mensagem", mensagens[0])
+    contagem = {}
+    for m in mensagens:
+        if isinstance(m, dict):
+            chave = (str(m.get("sent_by") or m.get("sender_type") or "?"), str(m.get("type") or "?"))
+            contagem[chave] = contagem.get(chave, 0) + 1
+    print("contagem por (remetente, tipo):")
+    for (rem, tipo), n in sorted(contagem.items()):
+        print(f"  {rem} / {tipo}: {n}")
+    exemplo_botao = next((m for m in mensagens if isinstance(m, dict)
+                          and m.get("type") in ("button_reply", "quick_reply", "list_reply", "interactive")), None)
+    if exemplo_botao:
+        mostrar("6b. formato de uma resposta de botão", exemplo_botao)
 
-    print("\n===== 3b. Contagens por remetente (primeira página, até 100) =====")
-    for rotulo, extra in [
-        ("padrão (sem sent_by)", {}),
-        ("sent_by=bot", {"sent_by": "bot"}),
-        ("sent_by=customer", {"sent_by": "customer"}),
-        ("sent_by=operator", {"sent_by": "operator"}),
-        ("sent_by=bot,customer,operator (vírgula)", {"sent_by": "bot,customer,operator"}),
-        ("sent_by repetido", {"sent_by": ["bot", "customer", "operator"]}),
-        ("cliente, texto e botões", {"type": "text,button_reply,quick_reply,list_reply",
-                                     "sent_by": "customer"}),
-    ]:
-        print(f"{rotulo}: {contar_historico(customer_id, extra)}")
-
-    # Teste 4: semântica de datas. Compara um dia isolado com o intervalo até o dia seguinte.
-    print("\n===== 4. Semântica de start_date/end_date =====")
-    for dias_atras in (1, 2, 3, 7):
-        dia = hoje - timedelta(days=dias_atras)
-        todos = {"sent_by": "bot,customer,operator"}
-        mesmo_dia = contar_historico(customer_id, {"start_date": dia.isoformat(),
-                                                   "end_date": dia.isoformat(), **todos})
-        ate_seguinte = contar_historico(customer_id, {"start_date": dia.isoformat(),
-                                                      "end_date": (dia + timedelta(days=1)).isoformat(), **todos})
-        print(f"{dia}: só o dia = {mesmo_dia} | dia até o seguinte = {ate_seguinte}")
+    # Teste 7: semântica de start_date/end_date com um dia em que há mensagens
+    chave_data, _ = data_da_mensagem(mensagens[0]) if isinstance(mensagens[0], dict) else (None, None)
+    print(f"\n===== 7. Datas (campo usado: {chave_data}) =====")
+    if not chave_data:
+        return
+    dias = sorted({str(m.get(chave_data))[:10] for m in mensagens if isinstance(m, dict) and m.get(chave_data)})
+    print(f"dias com mensagens (UTC, pelo texto do campo): {dias[-5:]}")
+    for dia_txt in dias[-2:]:
+        dia = date.fromisoformat(dia_txt)
+        esperado = sum(str(m.get(chave_data))[:10] == dia_txt for m in mensagens if isinstance(m, dict))
+        resultados = {}
+        for rotulo, ini, fim in [("só o dia", dia, dia), ("dia até o seguinte", dia, dia + timedelta(days=1)),
+                                 ("dia anterior até o dia", dia - timedelta(days=1), dia)]:
+            try:
+                resultados[rotulo] = len(historico_completo(
+                    contato, {"start_date": ini.isoformat(), "end_date": fim.isoformat()}))
+            except (ConsultaFalhou, PermissionError) as erro:
+                resultados[rotulo] = f"falhou ({erro})"
+        print(f"{dia_txt}: mensagens nesse dia UTC = {esperado} | " +
+              " | ".join(f"{k} = {v}" for k, v in resultados.items()))
+    for formato, valor in [("data e hora ISO", f"{dias[-1]}T00:00:00"),
+                           ("data e hora com fuso -03:00", f"{dias[-1]}T00:00:00-03:00")]:
+        try:
+            n = len(historico_completo(contato, {"start_date": valor, "end_date": valor[:10] + "T23:59:59"}))
+            print(f"formato {formato}: aceito, {n} mensagens")
+        except (ConsultaFalhou, PermissionError) as erro:
+            print(f"formato {formato}: {erro}")
 
 
 if __name__ == "__main__":
